@@ -40,9 +40,9 @@ GUIMigrator
 │   ├── entity -  Includes project source code structure, etc.
 │   ├── utils - Common utilities for logging, file operations, etc.
 │   └── service
-│       ├── parser - Parser for Android UI elements(layouts, views,).
-│       ├── rule - UI translate rules.
-│       └── translate - Includes logic for Android source code analysis, translation, etc.
+│       ├── parser - Parser for Android UI elements (layouts, views,).
+│       ├── rule - UI transpilation rules.
+│       └── transpiler - Includes logic for Android source code analysis, transpilation, etc.
 ├── test  - Project test files.
 └── resources - Project configuration files, including scanned client Android apps,  etc.
 ```
@@ -97,14 +97,14 @@ the full path of the `res` directory of the Android app you wish to migrate.
 
 The tool will automatically parse and migrate UI resources, layouts, and views from the res directory.
 
-### Step 2: Translate Android UI
+### Step 2: Transpile Android UI
 
 Execute the `Main` class.
 
 - 2.1 First, navigate to the main directory: `src/main/java`.
 - 2.2 Open `Main.java` in any IDE, and then run the main class.
 
-this process will translate Android UI elements.
+this process will transpile Android UI elements.
 
 ## Results
 
