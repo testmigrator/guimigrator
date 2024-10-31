@@ -109,5 +109,5 @@ this process will transpile Android UI elements.
 ## Results
 
 <div style="border-left: 5px solid #FF9900; padding: 10px; background-color: #cbf1cc;">
-:) To preview the UI files generated from the migration, you will need to import the generated SwiftUI files into `Xcode`.
+:) To preview the UI files generated from the migration, you will need to import the generated SwiftUI files into Xcode.
 </div>
