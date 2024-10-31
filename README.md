@@ -95,7 +95,7 @@ Supplement parameter configurations in the `task.properties` file, including And
 You need to locate the `task.properties` file in the `src/main/resources` directory, and then set the resourcePath to
 the full path of the `res` directory of the Android app you wish to migrate.
 
-The tool will automatically parse and migrate UI resources, layouts, and views from the res directory.
+The tool will automatically parse and migrate UI resources, layouts, and views from the `res` directory.
 
 ### Step 2: Transpile Android UI
 
@@ -109,5 +109,5 @@ this process will transpile Android UI elements.
 ## Results
 
 <div style="border-left: 5px solid #FF9900; padding: 10px; background-color: #cbf1cc;">
-:) To preview the UI files generated from the migration, you will need to import the generated SwiftUI files into Xcode.
+:) To preview the UI files generated from the migration, you will need to import the generated SwiftUI files into `Xcode`.
 </div>
