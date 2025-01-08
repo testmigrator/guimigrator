@@ -1,7 +1,5 @@
 # GUIMigrator
 
-> This is the basic implementation of our submission in ISSTA 2025:
-
 - [Description](#Description)
 - [Project Structure](#ProjectStructure)
 - [Datasets](#Datasets)
