@@ -3,16 +3,49 @@ package service;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import entity.enums.TargetUIPropertyType;
+import entity.resource.TargetUICode;
 import entity.resource.TargetUIVar;
 import entity.resource.TargetView;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import service.transpiler.UITranspiler;
+import service.transpiler.compose.CUITranspilerRegistry;
+import service.transpiler.swiftui.SUITranspilerRegistry;
+import utils.TaskParamReader;
 
+import java.io.BufferedWriter;
 import java.io.File;
-import java.util.List;
-import java.util.Map;
+import java.io.FileWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class TargetUICodeGenerator {
+
+    public static void writeTranslateUICodeToFiles(List<TargetUICode> translateUICodeList) {
+        String outputPath = System.getProperty("user.dir");
+        String suffix;
+        if (TaskParamReader.getTaskParam().getTargetPlatform().equalsIgnoreCase("COMPOSE")) {
+            suffix = ".kt";
+        } else {
+            suffix = ".swift";
+        }
+
+        for (TargetUICode targetUICode : translateUICodeList) {
+            String filepath = outputPath + File.separator + "output" + File.separator
+                    + "targetUICode" + File.separator + targetUICode.getFilename() + suffix;
+            try {
+                Files.createDirectories(Paths.get(outputPath + File.separator + "output"));
+                Files.createDirectories(Paths.get(outputPath + File.separator + "output" + File.separator + "targetUICode"));
+                BufferedWriter writer = new BufferedWriter(new FileWriter(filepath));
+                writer.write(targetUICode.getTranslateCode());
+                writer.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     public static String generate(TargetView view) {
         if (view == null) {
@@ -106,7 +139,7 @@ public class TargetUICodeGenerator {
         } else {
             if (!view.isContainsDefaultParentheses()) {
                 parenthesesViewStr.append("{}");
-            }else{
+            } else {
                 parenthesesViewStr.append("");
             }
         }
@@ -200,7 +233,7 @@ public class TargetUICodeGenerator {
         return result.toString().trim();
     }
 
-    public static String wrapViewBodyCode(String xmlFilepath, String generateVarCode, String generateUICode) {
+    public static String wrapSViewBodyCode(String xmlFilepath, String generateVarCode, String generateUICode) {
         StringBuilder bodyTemplate = new StringBuilder();
         bodyTemplate.append("import SwiftUI");
         bodyTemplate.append("\n");
@@ -237,9 +270,9 @@ public class TargetUICodeGenerator {
 //                "    }\n" +
 //                "}");
 
-        bodyTemplate.append("struct "+xmlFileName +"_Previews: PreviewProvider {\n" +
+        bodyTemplate.append("struct " + xmlFileName + "_Previews: PreviewProvider {\n" +
                 "    static var previews: some View {\n" +
-                "        "+xmlFileName +"()\n" +
+                "        " + xmlFileName + "()\n" +
                 "    }\n" +
                 "}\n");
 
@@ -247,10 +280,50 @@ public class TargetUICodeGenerator {
     }
 
 
+
+    public static String wrapCViewBodyCode(String xmlFilepath, String generateVarCode, String generateUICode) {
+        StringBuilder bodyTemplate = new StringBuilder();
+        String xmlFileName = getXmlFileNameWithoutExtension(xmlFilepath);
+        bodyTemplate.append("class ")
+                .append(xmlFileName)
+                .append(": ComponentActivity() {");
+
+        bodyTemplate.append("\n");
+
+        bodyTemplate.append(generateVarCode);
+        bodyTemplate.append("\n");
+
+
+        bodyTemplate.append("\n");
+
+        bodyTemplate.append(generateUICode);
+
+        bodyTemplate.append("}");
+
+
+        bodyTemplate.append("\n");
+        bodyTemplate.append("\n");
+
+//        bodyTemplate.append("struct " + xmlFileName + "_Previews: PreviewProvider {\n" +
+//                "    static var previews: some View {\n" +
+//                "        " + xmlFileName + "()\n" +
+//                "    }\n" +
+//                "}\n");
+
+        return bodyTemplate.toString();
+    }
+
+
+
     public static String generateVarCode(List<TargetUIVar> targetUIVarList) {
         if (CollectionUtils.isEmpty(targetUIVarList)) {
             return "";
         }
+
+        Set<String> seen = new HashSet<>();
+        targetUIVarList = targetUIVarList.stream()
+                .filter(e -> seen.add(e.getVarName())).toList();
+
         List<String> varList = Lists.newArrayList();
         for (TargetUIVar targetUIVar : targetUIVarList) {
             StringBuilder var = new StringBuilder();

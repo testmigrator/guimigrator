@@ -1,7 +1,5 @@
 # GUIMigrator
 
-> This is the basic implementation of our submission in ISSTA 2025:
-
 - [Description](#Description)
 - [Project Structure](#ProjectStructure)
 - [Datasets](#Datasets)
@@ -9,24 +7,19 @@
 
 ## Description
 
-> In the mobile development process, creating the user interface (UI) is highly resource-intensive.
-Consequently, numerous studies have focused on automating UI development, such as generating UI  from screenshots or design specifications.
-However, they heavily rely on computer vision techniques for image recognition.
-Any recognition errors can cause invalid UI element generation, compromising the effectiveness of these automated approaches.
-Moreover, developing an app UI from scratch remains a time-consuming and labor-intensive task.
+> In mobile development, constructing user interfaces (UIs) remains a resource-intensive task.
+Declarative frameworks such as Jetpack Compose (Android) and SwiftUI (iOS) have become mainstream due to their superior support for UI development.
+However, as legacy Android apps predominantly rely on XML-based layouts, migrating them to modern declarative paradigms remains manual, time-consuming, and error-prone.
 > 
-> To address this challenge, we propose a novel approach called GUIMigrator, which enables the cross-platform migration of existing Android app UIs to iOS, thereby automatically generating UI to facilitate the reuse of existing UI.
-This approach not only avoids errors from screenshot recognition but also reduces the cost of developing UIs from scratch.
-GUIMigrator extracts and parses Android UI layouts, views, and resources to construct a UI skeleton tree.
-This tree is subsequently transformed into an Android UI representation model.
-To facilitate the migration process, we design a specialized UI migration transpiler called Semantic UI Transpiler (SUT), which simulates the Android UI and generates the corresponding SwiftUI representation model that uniformly constructs the UI across iOS platform.
-Finally, GUIMigrator generates the final UI code files utilizing target code templates.
-These files are subsequently compiled and validated in the iOS development platform, i.e., Xcode.
+> To address the challenges of migrating legacy XML-based UIs to modern declarative frameworks, we propose a novel approach called GUIMigrator, which enables the cross-platform migration of Android app UIs to both iOS (SwiftUI) and modern Android (Jetpack Compose).
+GUIMigrator first extracts and parses Android UI layouts, views, and resources to construct a UI skeleton tree.
+To facilitate the migration process, we design a specialized UI migration transpiler called Semantic UI Transpiler (SUT), which simulates the semantics of Android UIs and generates corresponding declarative representations in SwiftUI and Jetpack Compose, ensuring consistency across platforms.
+Finally, GUIMigrator produces the final UI code files using target-specific templates, which are compiled and validated on their respective platforms, such as Xcode for iOS and Android Studio for Compose.
 We evaluate the effectiveness of GUIMigrator on 31 Android open-source applications across ten domains.
-The results show that GUIMigrator achieves a UI similarity score of 78\% between pre- and post-migration screenshots, outperforming two popular existing LLMs substantially.
-Additionally, GUIMigrator reduces development costs, with a 98\% reduction in code changes and a 90\% decrease in development time compared to building the UI from scratch.
-Finally, GUIMigrator demonstrates high efficiency, taking only 7.6 seconds to migrate the datasets.
-These findings indicate that GUIMigrator effectively facilitates the reuse of Android UI code on iOS, leveraging the strengths of both platforms' UI frameworks and making new contributions to cross-platform development.
+The results show that GUIMigrator achieves a UI similarity score of 78\% between pre- and post-migration screenshots, significantly outperforming a widely used LLM-based baseline.
+In addition, GUIMigrator reduces development effort, with a 98\% reduction in manual code changes and a 90\% decrease in development time compared to building UIs from scratch.
+These findings indicate that GUIMigrator effectively facilitates the migration and reuse of Android UIs across platforms, leveraging the strengths of both platforms’ UI frameworks and making new contributions to automated cross-platform UI development.
+
 ## ProjectStructure
 
 ```
@@ -46,6 +39,9 @@ GUIMigrator
 ├── test  - Project test files.
 └── resources - Project configuration files, including scanned client Android apps,  etc.
 ```
+# Pipeline
+<img src="img.png" width="70%" />
+
 
 ## Datasets
 

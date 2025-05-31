@@ -22,7 +22,6 @@ public class LayoutXmlParser {
 
     public static List<XmlLayout> process(String resourcePath) {
         List<XmlLayout> xmlPaths = Lists.newArrayList();
-        String layoutPath = resourcePath + "/layout";
         List<String> layoutPaths = Lists.newArrayList();
 
         layoutPaths.addAll(GetFoldFileNames.readFileWithType(resourcePath + "/layout", "xml"));

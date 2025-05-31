@@ -6,7 +6,10 @@ import entity.resource.ViewElement;
 import entity.resource.XmlLayout;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import service.transpiler.compose.CUITranspilerRegistry;
+import service.transpiler.swiftui.SUITranspilerRegistry;
 import utils.Log;
+import utils.TaskParamReader;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -32,6 +35,8 @@ public class MetricStats {
     public static long totalTimeCost = 0;
 
     public static int totalXmlNum = 0;
+
+
     public static int totalLayoutNum = 0;
     public static int totalViewNum = 0;
     public static int totalOriginCodeLineNum = 0;
@@ -135,7 +140,6 @@ public class MetricStats {
             totalXmlNum++;
             int xmlCodeLine = MetricStats.calcXmlCodeLine(pathname);
             totalOriginCodeLineNum += xmlCodeLine;
-
 //            fillXmlStatItem("xmlFilepath", pathname);
 //            fillXmlStatItem("codeLineNum", xmlCodeLine);
         }
@@ -153,7 +157,6 @@ public class MetricStats {
         try (BufferedReader br = new BufferedReader(new FileReader(xmlFilepath))) {
             String line;
             while ((line = br.readLine()) != null) {
-                // 忽略注释行
                 if (!line.trim().startsWith("<!--")) {
                     lineCount++;
                 }
@@ -197,7 +200,12 @@ public class MetricStats {
     }
 
     public static UITranspiler createTranslator(String viewType) {
-        Class<? extends UITranspiler> processorClass = UITranspilerRegistry.processors.get(viewType);
+        Class<? extends UITranspiler> processorClass;
+        if(TaskParamReader.getTaskParam().getTargetPlatform().equalsIgnoreCase("COMPOSE")){
+            processorClass = CUITranspilerRegistry.processors.get(viewType);
+        }else{
+            processorClass = SUITranspilerRegistry.processors.get(viewType);
+        }
         try {
             if (processorClass == null) {
                 return null;
@@ -238,7 +246,12 @@ public class MetricStats {
         }
 
         for (ViewElement child : viewElementChildren) {
-            UITranspiler childTranslator = UITranspilerRegistry.createTranslator(child.getType());
+            UITranspiler childTranslator;
+            if(TaskParamReader.getTaskParam().getTargetPlatform().equalsIgnoreCase("COMPOSE")){
+                childTranslator = CUITranspilerRegistry.createTranslator(child.getType());
+            }else{
+                childTranslator = SUITranspilerRegistry.createTranslator(child.getType());
+            }
             if (childTranslator == null) {
                 continue;
             }

@@ -30,6 +30,7 @@ public class TaskParamReader {
 
         return TaskParam.builder()
                 .resourcePath(properties.getProperty("resourcePath"))
+                .targetPlatform(properties.getProperty("targetPlatform"))
                 .build();
 
     }

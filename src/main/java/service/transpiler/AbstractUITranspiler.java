@@ -1,6 +1,7 @@
 package service.transpiler;
 
 import com.google.common.collect.Lists;
+import entity.TaskParam;
 import entity.enums.SourcePropertyKeyEnum;
 import entity.enums.TargetUIPropertyType;
 import entity.resource.TargetView;
@@ -8,6 +9,9 @@ import entity.resource.ViewElement;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import service.transpiler.basic.BasicTranspiler;
+import service.transpiler.compose.CUITranspilerRegistry;
+import service.transpiler.swiftui.SUITranspilerRegistry;
+import utils.TaskParamReader;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +33,6 @@ public abstract class AbstractUITranspiler implements UITranspiler {
 
 
     /**
-     *
      * @param viewElement
      * @return
      */
@@ -47,9 +50,15 @@ public abstract class AbstractUITranspiler implements UITranspiler {
         fillParenthesesViewList(viewElement);
 
         List<ViewElement> viewElementChildren = viewElement.getChildren();
+        TaskParam taskParam = TaskParamReader.getTaskParam();
         if (CollectionUtils.isNotEmpty(viewElementChildren)) {
             for (ViewElement child : viewElementChildren) {
-                UITranspiler childTranslator = UITranspilerRegistry.createTranslator(child.getType());
+                UITranspiler childTranslator;
+                if (taskParam.getTargetPlatform().equalsIgnoreCase("COMPOSE")) {
+                    childTranslator = CUITranspilerRegistry.createTranslator(child.getType());
+                } else {
+                    childTranslator = SUITranspilerRegistry.createTranslator(child.getType());
+                }
                 if (childTranslator == null) {
                     continue;
                 }
@@ -60,16 +69,18 @@ public abstract class AbstractUITranspiler implements UITranspiler {
 
         addDefaultViewIfNeed(viewElement);
 
-        BasicTranspiler.translateBasicProperty(viewElement.getParentId(), viewElement.getAttributes(), sourcePropertyKeyList,
-                propertyList, bracketsPropertyList, parenthesesViewList);
+        if (!taskParam.getTargetPlatform().equalsIgnoreCase("COMPOSE")) {
+            BasicTranspiler.translateBasicProperty(viewElement.getParentId(), viewElement.getAttributes(), sourcePropertyKeyList,
+                    propertyList, bracketsPropertyList, parenthesesViewList);
+        }
 
         return BasicTranspiler.fillTargetViewProperty(targetView, propertyList, bracketsPropertyList, parenthesesViewList, fillerList);
     }
 
     public void addDefaultViewIfNeed(ViewElement viewElement) {
         boolean layout = viewElement.getType().endsWith("Layout");
-        if(layout){
-            if(CollectionUtils.isEmpty(parenthesesViewList)){
+        if (layout) {
+            if (CollectionUtils.isEmpty(parenthesesViewList)) {
                 TargetView defaultTargetView = new TargetView();
                 defaultTargetView.setName("Text");
                 TargetView.Property property = new TargetView.Property();
@@ -85,7 +96,6 @@ public abstract class AbstractUITranspiler implements UITranspiler {
     }
 
     /**
-     *
      * @param parentId
      * @param attributes
      * @param sourcePropertyKeyList

@@ -11,4 +11,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TaskParam {
     private String resourcePath;
+    private String targetPlatform;
 }

@@ -1,13 +1,17 @@
 package service.transpiler;
 
 import com.google.common.collect.Lists;
+import entity.TaskParam;
 import entity.UIResourceContext;
 import entity.enums.SourcePropertyKeyEnum;
 import entity.resource.*;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import service.TargetUICodeGenerator;
+import service.transpiler.compose.CUITranspilerRegistry;
+import service.transpiler.swiftui.SUITranspilerRegistry;
 import utils.Log;
+import utils.TaskParamReader;
 
 import java.nio.file.FileSystems;
 import java.util.List;
@@ -40,20 +44,23 @@ public class Main {
             updateIncludeAttr(xmlLayout.getViewElement());
         }
 
-
         // step3 : translation
         for (XmlLayout xmlLayout : xmlLayouts) {
             // step3.1 : translate xml layout
             targetUICodeList.add(generateTargetUICode(xmlLayout));
         }
 
-
         return targetUICodeList.stream().filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     private static TargetUICode generateTargetUICode(XmlLayout xmlLayout) {
         ViewElement viewElement = xmlLayout.getViewElement();
-        UITranspiler uiTranspiler = UITranspilerRegistry.createTranslator(viewElement.getType());
+        UITranspiler uiTranspiler;
+        if (TaskParamReader.getTaskParam().getTargetPlatform().equalsIgnoreCase("COMPOSE")) {
+            uiTranspiler = CUITranspilerRegistry.createTranslator(viewElement.getType());
+        } else {
+            uiTranspiler = SUITranspilerRegistry.createTranslator(viewElement.getType());
+        }
         if (uiTranspiler == null) {
             return null;
         }
@@ -66,7 +73,13 @@ public class Main {
 
         String generateVarCode = TargetUICodeGenerator.generateVarCode(XmlLayoutVarCollector.targetUIVarList);
         String generateUICode = TargetUICodeGenerator.generate(targetView);
-        String translateCode = TargetUICodeGenerator.wrapViewBodyCode(xmlLayout.getXmlFilepath(),generateVarCode,generateUICode);
+
+        String translateCode;
+        if (TaskParamReader.getTaskParam().getTargetPlatform().equalsIgnoreCase("COMPOSE")) {
+            translateCode = TargetUICodeGenerator.wrapCViewBodyCode(xmlLayout.getXmlFilepath(), generateVarCode, generateUICode);
+        } else {
+            translateCode = TargetUICodeGenerator.wrapSViewBodyCode(xmlLayout.getXmlFilepath(), generateVarCode, generateUICode);
+        }
 
         XmlLayoutVarCollector.clear();
 
