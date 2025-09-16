@@ -1,26 +1,36 @@
-# GUIMigrator
+# <img src="assets/icon.png" alt="Project logo" width="55"> GUIMigrator: Semantics-Preserving Transpilation from
+Android XML to Compose and SwiftUI
 
+## 📑 Table of Contents
 - [Description](#Description)
 - [Project Structure](#ProjectStructure)
-- [Datasets](#Datasets)
+- [Experiments](#Experiments)
+  - [Datasets](#Datasets)
+  - [Results](#Results)
 - [Usage](#Usage)
 
-## Description
+## 📝 Description
+Constructing user interfaces (UIs) is one of the most resource-intensive tasks in mobile development, often consuming more than half of overall effort. Although declarative frameworks such as **Jetpack Compose** (Android) and **SwiftUI** (iOS) have become mainstream, most Android apps still rely on **legacy XML-based layouts**.
 
-> In mobile development, constructing user interfaces (UIs) remains a resource-intensive task.
-Declarative frameworks such as Jetpack Compose (Android) and SwiftUI (iOS) have become mainstream due to their superior support for UI development.
-However, as legacy Android apps predominantly rely on XML-based layouts, migrating them to modern declarative paradigms remains manual, time-consuming, and error-prone.
-> 
-> To address the challenges of migrating legacy XML-based UIs to modern declarative frameworks, we propose a novel approach called GUIMigrator, which enables the cross-platform migration of Android app UIs to both iOS (SwiftUI) and modern Android (Jetpack Compose).
-GUIMigrator first extracts and parses Android UI layouts, views, and resources to construct a UI skeleton tree.
-To facilitate the migration process, we design a specialized UI migration transpiler called Semantic UI Transpiler (SUT), which simulates the semantics of Android UIs and generates corresponding declarative representations in SwiftUI and Jetpack Compose, ensuring consistency across platforms.
-Finally, GUIMigrator produces the final UI code files using target-specific templates, which are compiled and validated on their respective platforms, such as Xcode for iOS and Android Studio for Compose.
-We evaluate the effectiveness of GUIMigrator on 31 Android open-source applications across ten domains.
-The results show that GUIMigrator achieves a UI similarity score of 78\% between pre- and post-migration screenshots, significantly outperforming a widely used LLM-based baseline.
-In addition, GUIMigrator reduces development effort, with a 98\% reduction in manual code changes and a 90\% decrease in development time compared to building UIs from scratch.
-These findings indicate that GUIMigrator effectively facilitates the migration and reuse of Android UIs across platforms, leveraging the strengths of both platforms’ UI frameworks and making new contributions to automated cross-platform UI development.
+Migrating these UIs to declarative paradigms is essential for **maintainability** and **cross-platform reuse**, but manual migration is costly, error-prone, and difficult to scale.
 
-## ProjectStructure
+We present **GUIMigrator**, a semantics-preserving framework that automates the migration of Android XML-based UIs to Jetpack Compose and SwiftUI.
+
+Key features:
+- **Semantic UI Transpiler (SUT):** abstracts layout structures and resource semantics from legacy XML.
+- **Cross-platform consistency:** systematically re-expresses semantics using idioms of Compose and SwiftUI.
+- **Deterministic yet extensible design:** separates semantic interpretation from platform realization, avoiding unpredictability of purely generative approaches.
+
+Evaluation on **31 open-source apps across ten domains** shows:
+- High migration completeness and **visual similarity** (Compose: 82%, SwiftUI: 78%).
+- Outperforms GPT-4 baseline in **structural fidelity**.
+- Reduces manual development effort by **>90%**.
+
+These results demonstrate that GUIMigrator is a **practical and effective solution** for reusing Android UIs across modern declarative frameworks.
+
+---
+
+## 📖 ProjectStructure
 
 ```
 GUIMigrator
@@ -39,11 +49,25 @@ GUIMigrator
 ├── test  - Project test files.
 └── resources - Project configuration files, including scanned client Android apps,  etc.
 ```
-# Pipeline
-<img src="img.png" width="70%" />
+**Pipeline**   
+<img src="assets/pipeline.png" alt="pipeline"  style="width:800px; height:auto;">
+
+## 🧪 Experiments
+
+- **RQ1: Migration Quality**  
+  To what extent does GUIMigrator preserve the **visual fidelity** and **structural semantics** of the original UI?
+
+- **RQ2: Migration Effectiveness**  
+  How many **UI elements and attributes** can GUIMigrator successfully migrate across diverse applications?
+
+- **RQ3: Development Effort Reduction**  
+  How much **manual engineering effort** can be saved compared to rebuilding UIs from scratch?
+
+- **RQ4: Migration Performance**  
+  What is the **runtime overhead** of the migration process in terms of efficiency and scalability?
 
 
-## Datasets
+### 📊 Datasets
 
 Complete dataset：please refer to `datasets` directory.  
 The sources of Android applications (Github 9.9k &#9733;):
@@ -82,9 +106,29 @@ Here you can find all the source code files for the projects mentioned in the pa
 | CNode                    | https://github.com/iwhys/CNode-android/                          |
 | SoundRecorder            | https://github.com/dkim0419/SoundRecorder                        |
 
-## Usage
+### 📈 Result
+- **Visual similarity:** Compose 82%, SwiftUI 78%
+- **Structural fidelity:** Higher than GPT-4 baseline
+- **Effort reduction:** >90% less manual work
+- **Performance:** Migration completes in seconds per layout
 
-### Step 1: Task Parameter Configuration
+#### 🔹 Migration Outcomes
+Results of UI migration across ten domains. Metrics include the number and proportion of successfully
+migrated XML files (XML), layouts (Layouts), and views (Views), together with the number of syntax errors
+in the generated code (Errors).
+
+<img src="assets/result1.png" alt="result1"  style="width:800px; height:auto;">
+
+#### 🔹 Comparative Effectiveness
+
+Comparative results of UI migration effectiveness. We report Code Relative Change (CRC), Code
+Token Change (CTC), and Structural Similarity Index (SSIM). Baseline uses GPT-4, compared with GUIMigrator.
+
+<img src="assets/result1.png" alt="result2"  style="width:800px; height:auto;">
+
+## 💻 Usage
+---
+### 🔹 Step 1: Task Parameter Configuration
 
 Supplement parameter configurations in the `task.properties` file, including Android app file paths.
 
@@ -93,17 +137,23 @@ the full path of the `res` directory of the Android app you wish to migrate.
 
 The tool will automatically parse and migrate UI resources, layouts, and views from the `res` directory.
 
-### Step 2: Transpile Android UI
+### 🔹Step 2: Transpile Android UI
 
-Execute the `Main` class.
+Execute the Main class:
 
-- 2.1 First, navigate to the main directory: `src/main/java`.
-- 2.2 Open `Main.java` in any IDE, and then run the main class.
+Navigate to the main directory:
+```
+cd src/main/java
+```
+Open `Main.java` in your IDE.
+
+Run the `Main` class.
+
+This will transpile Android XML-based UI elements into Jetpack Compose and SwiftUI code.
 
 this process will transpile Android UI elements.
 
-## Results
-
-<div style="border-left: 5px solid #FF9900; padding: 10px; background-color: #cbf1cc;">
-:) To preview the UI files generated from the migration, you will need to import the generated SwiftUI files into Xcode.
-</div>
+📌 Tips
+> Ensure the task.properties file is configured correctly before running.      
+> The transpiled files will be stored under the output directory specified in the configuration.         
+> Check the logs for warnings (e.g., unmapped UI attributes).        
