@@ -29,17 +29,18 @@ public class RadioButtonTranspiler extends ButtonTranspiler {
 
     @Override
     protected void fillBracketsPropertyList(ViewElement viewElement) {
-        ViewElement parentViewElement = UIResourceContext.viewElementMap.get(viewElement.getParentId());
-        String groupName = parentViewElement == null ? "radioGroup"
-                : BasicTranspiler.parseIdName(parentViewElement.getAttributes(), "RadioGroup");
+// TODO CONTEXT
+//        ViewElement parentViewElement = UIResourceContext.viewElementMap.get(viewElement.getParentId());
+//        String groupName = parentViewElement == null ? "radioGroup"
+//                : BasicTranspiler.parseIdName(parentViewElement.getAttributes(), "RadioGroup");
 
         String text = parseText(viewElement.getAttributes());
 
-        String defaultValue = "selected = " + groupName + ".isSelected(\"" + text + "\"), " +
-                "onClick = { " + groupName + ".selectOption(\"" + text + "\") }";
+//        String defaultValue = "selected = " + groupName + ".isSelected(\"" + text + "\"), " +
+//                "onClick = { " + groupName + ".selectOption(\"" + text + "\") }";
 
-        TargetView.Property defaultBrackets = translateDefaultBrackets(viewElement.getAttributes(), defaultValue);
-        bracketsPropertyList.add(defaultBrackets);
+//        TargetView.Property defaultBrackets = translateDefaultBrackets(viewElement.getAttributes(), defaultValue);
+//        bracketsPropertyList.add(defaultBrackets);
     }
 
     @Override

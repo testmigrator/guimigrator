@@ -8,6 +8,7 @@ import entity.resource.TargetView;
 import entity.resource.ViewElement;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import service.TargetUICodeGenerator;
 import service.transpiler.basic.BasicTranspiler;
 import service.transpiler.compose.CUITranspilerRegistry;
 import service.transpiler.swiftui.SUITranspilerRegistry;
@@ -48,12 +49,7 @@ public abstract class AbstractUITranspiler implements UITranspiler {
         TaskParam taskParam = TaskParamReader.getTaskParam();
         if (CollectionUtils.isNotEmpty(viewElementChildren)) {
             for (ViewElement child : viewElementChildren) {
-                UITranspiler childTranslator;
-                if (taskParam.getTargetPlatform().equalsIgnoreCase("COMPOSE")) {
-                    childTranslator = CUITranspilerRegistry.createTranslator(child.getType());
-                } else {
-                    childTranslator = SUITranspilerRegistry.createTranslator(child.getType());
-                }
+                UITranspiler childTranslator = createTranspiler(taskParam.getTargetPlatform(), child.getType());
                 if (childTranslator == null) {
                     continue;
                 }
@@ -70,24 +66,6 @@ public abstract class AbstractUITranspiler implements UITranspiler {
         }
 
         return BasicTranspiler.fillTargetViewProperty(targetView, propertyList, bracketsPropertyList, parenthesesViewList, fillerList);
-    }
-
-    public void addDefaultViewIfNeed(ViewElement viewElement) {
-        boolean layout = viewElement.getType().endsWith("Layout");
-        if (layout) {
-            if (CollectionUtils.isEmpty(parenthesesViewList)) {
-                TargetView defaultTargetView = new TargetView();
-                defaultTargetView.setName("Text");
-                TargetView.Property property = new TargetView.Property();
-                property.setName("");
-                TargetView.Property.Value value = new TargetView.Property.Value();
-                value.setType(TargetUIPropertyType.single_value.getCode());
-                value.setValue("\"\"");
-                property.setValue(value);
-                defaultTargetView.setBracketsPropertyList(Lists.newArrayList(property));
-                parenthesesViewList.add(defaultTargetView);
-            }
-        }
     }
 
     /**
@@ -126,5 +104,33 @@ public abstract class AbstractUITranspiler implements UITranspiler {
 
     protected abstract void fillBracketsPropertyList(ViewElement viewElement);
 
+
+    public void addDefaultViewIfNeed(ViewElement viewElement) {
+        boolean layout = viewElement.getType().endsWith("Layout");
+        if (layout) {
+            if (CollectionUtils.isEmpty(parenthesesViewList)) {
+                TargetView defaultTargetView = new TargetView();
+                defaultTargetView.setName("Text");
+                TargetView.Property property = new TargetView.Property();
+                property.setName("");
+                TargetView.Property.Value value = new TargetView.Property.Value();
+                value.setType(TargetUIPropertyType.single_value.getCode());
+                value.setValue("\"\"");
+                property.setValue(value);
+                defaultTargetView.setBracketsPropertyList(Lists.newArrayList(property));
+                parenthesesViewList.add(defaultTargetView);
+            }
+        }
+    }
+
+
+
+    private UITranspiler createTranspiler(String platform, String viewType) {
+        return switch (platform) {
+            case "COMPOSE" -> CUITranspilerRegistry.createTranslator(viewType);
+            case "SWIFTUI" -> SUITranspilerRegistry.createTranslator(viewType);
+            default -> null;
+        };
+    }
 
 }

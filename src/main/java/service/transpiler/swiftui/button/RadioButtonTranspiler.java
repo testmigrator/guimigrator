@@ -55,7 +55,9 @@ public class RadioButtonTranspiler extends ButtonTranspiler {
 
     @Override
     protected void fillBracketsPropertyList(ViewElement viewElement) {
-        ViewElement parentViewElement = UIResourceContext.viewElementMap.get(viewElement.getParentId());
+        // TODO CONTEXT
+        ViewElement parentViewElement =null;
+//        ViewElement parentViewElement = UIResourceContext.viewElementMap.get(viewElement.getParentId());
         // todo why null?
         String radioIdName = parentViewElement == null ? viewElement.getParentId()
                 : BasicTranspiler.parseIdName(parentViewElement.getAttributes(), "RadioButton");
@@ -98,8 +100,9 @@ public class RadioButtonTranspiler extends ButtonTranspiler {
 
     private TargetView buildImageParenthesesView(ViewElement viewElement) {
         String viewName = "Image";
-
-        ViewElement parentViewElement = UIResourceContext.viewElementMap.get(viewElement.getParentId());
+        // TODO CONTEXT
+        ViewElement parentViewElement =null;
+//        ViewElement parentViewElement = UIResourceContext.viewElementMap.get(viewElement.getParentId());
         String radioIdName = parentViewElement == null ? viewElement.getParentId().substring(0,3)
                 : BasicTranspiler.parseIdName(parentViewElement.getAttributes(), "RadioButton");
         String radioText = parseText(viewElement.getAttributes());

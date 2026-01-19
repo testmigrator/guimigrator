@@ -34,7 +34,6 @@ public class AppBarLayoutTranspiler extends CUIInitTranspiler {
             bracketsPropertyList.add(translateTitle(viewElement.getAttributes()));
 
             bracketsPropertyList.add(translateNavigationIcon(viewElement));
-
         }
 
         private TargetView.Property translateTitle(Map<String, String> attrs) {

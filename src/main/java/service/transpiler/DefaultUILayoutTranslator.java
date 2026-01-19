@@ -7,6 +7,7 @@ import entity.resource.TargetUICode;
 import entity.resource.TargetView;
 import entity.resource.ViewElement;
 import entity.resource.XmlLayout;
+import ir.*;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import service.MetricCollector;
@@ -70,8 +71,53 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         walk(root, v -> fillAndUpdateIncludeAttrValue(v, context));
     }
 
+    public void testNewUIPipeline(XmlLayout xmlLayout){
+        NodeRuleRegistry registry = new NodeRuleRegistry(new FallbackRule())
+                .register(new ConstraintLayoutRule())
+                .register(new LinearLayoutRule())
+                .register(new FrameLayoutRule())
+                .register(new TextRule())
+                .register(new ButtonRule())
+                .register(new ImageRule())
+                .register(new ColumnRule())
+                .register(new RowRule());
+
+        SemanticTreeTranslator translator = new SemanticTreeTranslator(
+                registry,
+                new SlotBinder(),
+                new DefaultCommonAttributeTranslator()
+        );
+
+        UINode uiTree = translator.translateTree(
+                NodeContext.builder().xmlFile(xmlLayout.getXmlFilepath()).build(),
+                xmlLayout.getViewElement()
+        );
+
+        LayoutNormalizer layoutNormalizer = new LayoutNormalizer(List.of(
+                new LinearLayoutNormalizerPass(),
+                new FrameLayoutNormalizerPass(),
+                new ConstraintNormalizerPass()
+        ));
+        UINode normalized = layoutNormalizer.normalize(uiTree);
+
+
+        BackendRenderer compose = new ComposeRenderer();
+        BackendRenderer swiftui = new SwiftUIRenderer();
+
+        String baseName = TargetUICodeGenerator.getXmlFileNameWithoutExtension(xmlLayout.getXmlFilepath());
+
+        BackendRenderer.RenderResult r1 = compose.render(normalized, new BackendRenderer.RenderConfig(baseName));
+        BackendRenderer.RenderResult r2 = swiftui.render(normalized, new BackendRenderer.RenderConfig(baseName));
+
+        System.out.println(r1.code());
+        System.out.println(r2.code());
+    }
 
     private TargetUICode generateTargetUICode(XmlLayout xmlLayout, UIResourceContext context, TaskParam taskParam) {
+        // todo for test new ui
+        testNewUIPipeline(xmlLayout);
+        return null;
+        /**
         ViewElement viewElement = xmlLayout.getViewElement();
         String targetPlatform = taskParam.getTargetPlatform();
 
@@ -100,6 +146,7 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         } finally {
             XmlLayoutVarCollector.clear();
         }
+         **/
 
     }
 
@@ -173,6 +220,7 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         return switch (platform) {
             case "COMPOSE" -> CUITranspilerRegistry.createTranslator(viewType);
             case "SWIFTUI" -> SUITranspilerRegistry.createTranslator(viewType);
+            default -> null;
         };
     }
 
@@ -180,6 +228,7 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         return switch (platform) {
             case "COMPOSE" -> TargetUICodeGenerator.wrapCViewBodyCode(xmlPath, varCode, uiCode);
             case "SWIFTUI" -> TargetUICodeGenerator.wrapSViewBodyCode(xmlPath, varCode, uiCode);
+            default -> "";
         };
     }
 

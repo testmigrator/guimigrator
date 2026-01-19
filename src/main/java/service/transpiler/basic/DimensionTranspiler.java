@@ -193,7 +193,9 @@ public class DimensionTranspiler {
         }
 
         if (height.trim().equals("match_parent")) {
-            ViewElement parentViewElement = UIResourceContext.viewElementMap.get(parentViewId);
+            // TODO CONTEXT
+            ViewElement parentViewElement = null;
+//            ViewElement parentViewElement = UIResourceContext.viewElementMap.get(parentViewId);
             if (parentViewElement == null) {
                 valueMap.put("minHeight", "0");
                 valueMap.put("maxHeight", ".infinity");
@@ -222,7 +224,9 @@ public class DimensionTranspiler {
         }
 
         if (width.trim().equals("match_parent")) {
-            ViewElement parentViewElement = UIResourceContext.viewElementMap.get(parentViewId);
+            // TODO CONTEXT
+            ViewElement parentViewElement = null;
+//            ViewElement parentViewElement = UIResourceContext.viewElementMap.get(parentViewId);
             if (parentViewElement == null) {
                 valueMap.put("minWidth", "0");
                 valueMap.put("maxWidth", ".infinity");

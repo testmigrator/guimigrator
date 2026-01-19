@@ -16,7 +16,6 @@ public class Main {
     public static void main(String[] args) {
         TaskParam taskParam = TaskParamReader.getTaskParam();
 
-
         MetricCollector metrics = new MetricCollector();
         UIResourceContextParser parser = new DefaultUIResourceContextParser(metrics);
 
