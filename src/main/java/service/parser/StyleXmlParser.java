@@ -19,11 +19,7 @@ import java.util.stream.Collectors;
 
 public class StyleXmlParser {
 
-    public static List<StyleValue> process(String resourcePath) {
-        String resourceValuesPath = resourcePath + "/values";
-
-        List<String> xmlFiles = GetFoldFileNames.readFileWithType(resourceValuesPath, "xml");
-
+    public static List<StyleValue> process(List<String> xmlFiles) {
         List<String> filePaths = filterFilePaths(xmlFiles);
 
         List<StyleValue> styleValues = parseXml(filePaths);

@@ -31,11 +31,6 @@ public abstract class AbstractUITranspiler implements UITranspiler {
 
     public List<SourcePropertyKeyEnum> sourcePropertyKeyList = Lists.newArrayList();
 
-
-    /**
-     * @param viewElement
-     * @return
-     */
     @Override
     public TargetView translate(ViewElement viewElement) {
         fillTargetViewName(viewElement);

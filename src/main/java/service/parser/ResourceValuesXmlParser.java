@@ -20,11 +20,7 @@ import java.util.stream.Collectors;
  */
 public class ResourceValuesXmlParser {
 
-    public static ResourceValues process(String resourcePath, ResourceTypeEnum resourceType) {
-        String resourceValuesPath = resourcePath + "/values";
-
-        List<String> xmlFiles = GetFoldFileNames.readFileWithType(resourceValuesPath, "xml");
-
+    public static ResourceValues process(List<String> xmlFiles, ResourceTypeEnum resourceType) {
         List<String> filePaths = filterFilePaths(xmlFiles, resourceType);
         codeLineStats(filePaths);
 
@@ -70,6 +66,26 @@ public class ResourceValuesXmlParser {
                 .collect(Collectors.toList());
     }
 
+    private static String refKey(String value) {
+        // 支持 @string/foo, @color/foo, @dimen/foo, @android:string/ok
+        // 只处理最常见：@xxx/name 或 @pkg:xxx/name
+        if (value == null) return null;
+        String v = value.trim();
+        if (!v.startsWith("@")) return null;
+        int slash = v.indexOf('/');
+        if (slash < 0 || slash == v.length() - 1) return null;
+        return v.substring(slash + 1); // name 部分
+    }
+
+    private static String resolveValue(String v, Map<String, String> map, Set<String> visiting) {
+        String key = refKey(v);
+        if (key == null) return v;
+        if (!visiting.add(key)) return v; // 防循环引用
+        String next = map.get(key);
+        if (next == null) return v;
+        return resolveValue(next, map, visiting);
+    }
+
     private static void updateResourceValue(ResourceValues resourceValues) {
         if (resourceValues == null) {
             return;
@@ -82,16 +98,17 @@ public class ResourceValuesXmlParser {
                 continue;
             }
 
-            String[] split = value.split("\\/");
-            String name = split[1];
-            String exactValue = valueMap.get(name);
+            String key = refKey(value);
+            if (key == null) continue;
+            String exactValue = valueMap.get(key);
             if (StringUtils.isBlank(exactValue)) {
                 Log.error("value is null");
                 continue;
             }
 
-            resourceValue.setValue(exactValue);
-            valueMap.put(resourceValue.getName(), exactValue);
+            String resolved = resolveValue(resourceValue.getValue(), valueMap, new HashSet<>());
+            resourceValue.setValue(resolved);
+            valueMap.put(resourceValue.getName(), resolved);
         }
     }
 

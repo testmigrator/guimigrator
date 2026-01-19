@@ -1,28 +1,36 @@
+import entity.TaskParam;
 import entity.resource.TargetUICode;
-import service.TargetUICodeGenerator;
+import service.*;
+import service.parser.DefaultUIResourceContextParser;
 import service.parser.UIResourceContextParser;
+import service.transpiler.DefaultUILayoutTranslator;
 import service.transpiler.MetricStats;
+import service.transpiler.UILayoutTranslator;
+import utils.TaskParamReader;
 
+import java.nio.file.Path;
 import java.util.List;
 
 public class Main {
 
     public static void main(String[] args) {
-        MetricStats.startTime = System.currentTimeMillis();
+        TaskParam taskParam = TaskParamReader.getTaskParam();
 
-        MetricStats.parsingStartTime = System.currentTimeMillis();
-        UIResourceContextParser.sourceUIParsing();
-        MetricStats.parsingEndTime = System.currentTimeMillis();
 
-        MetricStats.translatingStartTime = System.currentTimeMillis();
-        List<TargetUICode> translateUICodeList = service.transpiler.Main.translate();
-        MetricStats.translatingEndTime = System.currentTimeMillis();
+        MetricCollector metrics = new MetricCollector();
+        UIResourceContextParser parser = new DefaultUIResourceContextParser(metrics);
 
-        MetricStats.codeGeneratingStartTime = System.currentTimeMillis();
-        TargetUICodeGenerator.writeTranslateUICodeToFiles(translateUICodeList);
-        MetricStats.codeGeneratingEndTime = System.currentTimeMillis();
+        UILayoutTranslator translator = new DefaultUILayoutTranslator(metrics);
+        TargetUICodeWriter writer = new FileSystemTargetUICodeWriter(
+                Path.of(System.getProperty("user.dir"), "output", "targetUICode"),
+                new PlatformSuffixResolver(taskParam),
+                metrics
+        );
 
-        MetricStats.endTime = System.currentTimeMillis();
-        MetricStats.reportMetricStat();
+
+        MigrationPipeline pipeline = new MigrationPipeline(parser, translator, writer, metrics);
+
+        pipeline.run(taskParam);
+        metrics.report();
     }
 }

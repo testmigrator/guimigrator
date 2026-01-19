@@ -1,0 +1,195 @@
+package service.transpiler;
+
+import entity.TaskParam;
+import entity.UIResourceContext;
+import entity.enums.SourcePropertyKeyEnum;
+import entity.resource.TargetUICode;
+import entity.resource.TargetView;
+import entity.resource.ViewElement;
+import entity.resource.XmlLayout;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import service.MetricCollector;
+import service.StageTimer;
+import service.TargetUICodeGenerator;
+import service.transpiler.compose.CUITranspilerRegistry;
+import service.transpiler.swiftui.SUITranspilerRegistry;
+import utils.Log;
+import utils.TaskParamReader;
+
+import java.nio.file.FileSystems;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+public final class DefaultUILayoutTranslator implements UILayoutTranslator {
+    private final MetricCollector metrics;
+
+    public DefaultUILayoutTranslator(MetricCollector metrics) {
+        this.metrics = metrics;
+    }
+
+    @Override
+    public List<TargetUICode> translate(UIResourceContext context, TaskParam taskParam) {
+        List<XmlLayout> xmlLayouts = context.xmlLayouts();
+
+        try (StageTimer t = metrics.stage("translate.preprocess")) {
+            for (XmlLayout xmlLayout : xmlLayouts) {
+                updateXmlAttr(xmlLayout.getViewElement(), context);
+            }
+            for (XmlLayout xmlLayout : xmlLayouts) {
+                MetricStats.statMigrateXml(xmlLayout); // 这里也建议注入/替换成 metrics【最后再重构】
+            }
+            for (XmlLayout xmlLayout : xmlLayouts) {
+                updateIncludeAttr(xmlLayout.getViewElement(), context);
+            }
+        }
+
+        List<TargetUICode> results = new ArrayList<>(xmlLayouts.size());
+        try (StageTimer t = metrics.stage("translate.codegen")) {
+            for (XmlLayout xmlLayout : xmlLayouts) {
+                TargetUICode code = generateTargetUICode(xmlLayout, context, taskParam);
+                if (code != null) results.add(code);
+            }
+        }
+
+        return results.stream().filter(Objects::nonNull).toList();
+    }
+
+    /**
+     * private functions
+     **/
+
+    private void updateXmlAttr(ViewElement root, UIResourceContext context) {
+        walk(root, v -> fillAndUpdateAttrValue(v, context));
+    }
+
+    private void updateIncludeAttr(ViewElement root, UIResourceContext context) {
+        walk(root, v -> fillAndUpdateIncludeAttrValue(v, context));
+    }
+
+
+    private TargetUICode generateTargetUICode(XmlLayout xmlLayout, UIResourceContext context, TaskParam taskParam) {
+        ViewElement viewElement = xmlLayout.getViewElement();
+        String targetPlatform = taskParam.getTargetPlatform();
+
+        UITranspiler uiTranspiler = createTranspiler(targetPlatform, viewElement.getType());
+        if (uiTranspiler == null) {
+            return null;
+        }
+
+        String filename = fetchFilename(xmlLayout);
+
+        XmlLayoutVarCollector.init();
+        XmlLayoutVarCollector.xmlLayoutPath = xmlLayout.getXmlFilepath();
+
+        try {
+            TargetView targetView = uiTranspiler.translate(viewElement);
+
+            String varCode = TargetUICodeGenerator.generateVarCode(XmlLayoutVarCollector.targetUIVarList);
+            String uICode = TargetUICodeGenerator.generate(targetView);
+            String wrapped = wrap(targetPlatform, xmlLayout.getXmlFilepath(), varCode, uICode);
+
+            return TargetUICode.builder()
+                    .filename(filename)
+                    .xmlFilepath(xmlLayout.getXmlFilepath())
+                    .translateCode(wrapped)
+                    .build();
+        } finally {
+            XmlLayoutVarCollector.clear();
+        }
+
+    }
+
+    private void fillAndUpdateAttrValue(ViewElement viewElement, UIResourceContext context) {
+        Map<String, String> attributes = viewElement.getAttributes();
+        for (Map.Entry<String, String> entry : attributes.entrySet()) {
+            String attrName = entry.getKey();
+            String attrValue = entry.getValue();
+            if (SourcePropertyKeyEnum.relativeLayoutKeys.contains(attrName)
+                    || SourcePropertyKeyEnum.constraintLayoutKeys.contains(attrName)) {
+                continue;
+            }
+
+            if (!attrName.equals("android:id") && attrValue.startsWith("@")) {
+                String newValue = resolveReference(attrValue, context);
+                entry.setValue(newValue);
+            }
+        }
+        viewElement.setAttributes(attributes);
+    }
+
+    private String resolveReference(String attrValue, UIResourceContext context) {
+        if (attrValue == null || !attrValue.startsWith("@")) return attrValue;
+
+        if (attrValue.startsWith("@string/")) {
+            String key = attrValue.substring("@string/".length());
+            String s = context.stringValues().getValueMap().getOrDefault(key, StringUtils.EMPTY);
+            return s.replace("\\", "");
+        }
+        if (attrValue.startsWith("@color/")) {
+            String key = attrValue.substring("@color/".length());
+            return context.colorValues().getValueMap().getOrDefault(key, StringUtils.EMPTY);
+        }
+        if (attrValue.startsWith("@dimen/")) {
+            String key = attrValue.substring("@dimen/".length());
+            return context.dimValues().getValueMap().getOrDefault(key, StringUtils.EMPTY);
+        }
+
+        // drawable/layout 保留引用
+        return attrValue;
+    }
+
+    private void fillAndUpdateIncludeAttrValue(ViewElement viewElement, UIResourceContext context) {
+        String type = viewElement.getType();
+        Map<String, XmlLayout> layoutByName = context.xmlLayouts().stream()
+                .collect(Collectors.toMap(this::fetchFilename, x -> x, (a, b) -> a));
+        if (StringUtils.equals(type, "include")) {
+            String addr = viewElement.getAttributes().get("layout").replace("@layout/", "");
+            XmlLayout xmlLayout = layoutByName.get(addr);
+            if (xmlLayout == null) {
+                Log.error("file not found :" + "layout" + " : " + addr);
+                return;
+            }
+            ViewElement newElement = xmlLayout.getViewElement();
+            viewElement.setChildren(newElement.getChildren());
+            viewElement.setType(newElement.getType());
+            viewElement.setViewId(newElement.getViewId());
+            viewElement.setUid(newElement.getUid());
+            viewElement.setParentId(newElement.getParentId());
+            viewElement.setAttributes(newElement.getAttributes());
+        }
+    }
+
+    private String fetchFilename(XmlLayout xmlLayout) {
+        String filenameWithSuffix = FileSystems.getDefault().getPath(xmlLayout.getXmlFilepath()).getFileName().toString();
+        int dotIndex = filenameWithSuffix.lastIndexOf('.');
+        return (dotIndex == -1) ? filenameWithSuffix : filenameWithSuffix.substring(0, dotIndex);
+    }
+
+    private UITranspiler createTranspiler(String platform, String viewType) {
+        return switch (platform) {
+            case "COMPOSE" -> CUITranspilerRegistry.createTranslator(viewType);
+            case "SWIFTUI" -> SUITranspilerRegistry.createTranslator(viewType);
+        };
+    }
+
+    private String wrap(String platform, String xmlPath, String varCode, String uiCode) {
+        return switch (platform) {
+            case "COMPOSE" -> TargetUICodeGenerator.wrapCViewBodyCode(xmlPath, varCode, uiCode);
+            case "SWIFTUI" -> TargetUICodeGenerator.wrapSViewBodyCode(xmlPath, varCode, uiCode);
+        };
+    }
+
+    private void walk(ViewElement root, java.util.function.Consumer<ViewElement> visitor) {
+        if (root == null) return;
+        visitor.accept(root);
+        List<ViewElement> children = root.getChildren();
+        if (CollectionUtils.isEmpty(children)) return;
+        for (ViewElement child : children) {
+            walk(child, visitor);
+        }
+    }
+}

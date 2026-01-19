@@ -8,9 +8,6 @@ import entity.resource.TargetUIVar;
 import entity.resource.TargetView;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import service.transpiler.UITranspiler;
-import service.transpiler.compose.CUITranspilerRegistry;
-import service.transpiler.swiftui.SUITranspilerRegistry;
 import utils.TaskParamReader;
 
 import java.io.BufferedWriter;
@@ -18,206 +15,167 @@ import java.io.File;
 import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class TargetUICodeGenerator {
-
-    public static void writeTranslateUICodeToFiles(List<TargetUICode> translateUICodeList) {
-        String outputPath = System.getProperty("user.dir");
-        String suffix;
-        if (TaskParamReader.getTaskParam().getTargetPlatform().equalsIgnoreCase("COMPOSE")) {
-            suffix = ".kt";
-        } else {
-            suffix = ".swift";
-        }
-
-        for (TargetUICode targetUICode : translateUICodeList) {
-            String filepath = outputPath + File.separator + "output" + File.separator
-                    + "targetUICode" + File.separator + targetUICode.getFilename() + suffix;
-            try {
-                Files.createDirectories(Paths.get(outputPath + File.separator + "output"));
-                Files.createDirectories(Paths.get(outputPath + File.separator + "output" + File.separator + "targetUICode"));
-                BufferedWriter writer = new BufferedWriter(new FileWriter(filepath));
-                writer.write(targetUICode.getTranslateCode());
-                writer.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
     public static String generate(TargetView view) {
         if (view == null) {
             return "";
         }
 
-        StringBuilder viewStr = new StringBuilder();
-        viewStr.append(view.getName());
-        //Brackets
-        StringBuilder bracketsPropertyStr = generateBrackets(view);
-        viewStr.append(bracketsPropertyStr);
+        StringBuilder sb = new StringBuilder(256); // 给个初始容量，减少扩容
+        sb.append(view.getName());
 
-        //Parentheses
-        StringBuilder parenthesesViewStr = generateParentheses(view);
-        viewStr.append(parenthesesViewStr);
+        sb.append(generateBrackets(view));
+        sb.append(generateParentheses(view));
+        sb.append(generatePropertyList(view.getPropertyList()));
+        sb.append(generateFillerList(view.getFillerList()));
 
-        //property
-        StringBuilder propertyListStr = generatePropertyList(view.getPropertyList());
-        viewStr.append(propertyListStr);
-
-        //filler
-        StringBuilder fillerListStr = generateFillerList(view.getFillerList());
-        viewStr.append(fillerListStr);
-
-        return format(viewStr);
+        return removeEmptyLines(sb);
     }
 
-    public static String format(StringBuilder viewStr) {
-        String lines = removeEmptyLines(viewStr);
-
-        return lines;
-    }
 
     private static StringBuilder generatePropertyList(List<TargetView.Property> propertyList) {
-        StringBuilder propertyListStr = new StringBuilder();
-        if (CollectionUtils.isNotEmpty(propertyList)) {
-            propertyList.forEach(p -> {
-                propertyListStr.append(".");
-                propertyListStr.append(p.getName());
-                propertyListStr.append("(");
-
-                if (p.isContainsParentheses()) {
-                    propertyListStr.append(translateProperty(p));
-                } else {
-                    propertyListStr.append(translateProperty(p));
-                    propertyListStr.append(")");
-                }
-
-                propertyListStr.append("\n");
-            });
-        } else {
-            propertyListStr.append("");
+        StringBuilder sb = new StringBuilder();
+        if (CollectionUtils.isEmpty(propertyList)) {
+            return sb;
         }
-        return propertyListStr;
+        for (TargetView.Property p : propertyList) {
+            sb.append('.').append(p.getName()).append('(');
+            sb.append(translateProperty(p));
+            // 注意：保持原来的语义——containsParentheses=true 时不补 ')'
+            if (!p.isContainsParentheses()) {
+                sb.append(')');
+            }
+            sb.append('\n');
+        }
+
+        return sb;
     }
 
     private static StringBuilder generateFillerList(List<TargetView.Property> fillerList) {
-        StringBuilder fillerListStr = new StringBuilder();
-        if (CollectionUtils.isNotEmpty(fillerList)) {
-            fillerList.forEach(f -> {
-                fillerListStr.append(f.getName());
-                fillerListStr.append("(");
-
-                if (f.isContainsParentheses()) {
-                    fillerListStr.append(translateProperty(f));
-                } else {
-                    fillerListStr.append(translateProperty(f));
-                    fillerListStr.append(")");
-                }
-
-                fillerListStr.append("\n");
-            });
-        } else {
-            fillerListStr.append("");
+        StringBuilder sb = new StringBuilder();
+        if (CollectionUtils.isEmpty(fillerList)) {
+            return sb;
         }
-        return fillerListStr;
+        for (TargetView.Property f : fillerList) {
+            sb.append(f.getName()).append('(');
+            sb.append(translateProperty(f));
+            if (!f.isContainsParentheses()) {
+                sb.append(')');
+            }
+            sb.append('\n');
+        }
+
+        return sb;
     }
 
     private static StringBuilder generateParentheses(TargetView view) {
-        List<TargetView> parenthesesViewList = view.getParenthesesViewList();
-        StringBuilder parenthesesViewStr = new StringBuilder();
-        if (CollectionUtils.isNotEmpty(parenthesesViewList)) {
-            parenthesesViewStr.append("{");
-            parenthesesViewStr.append("\n");
-
-            parenthesesViewList.forEach(pv -> {
-                parenthesesViewStr.append(generate(pv));
-                parenthesesViewStr.append("\n");
-            });
-            parenthesesViewStr.append("}");
-        } else {
-            if (!view.isContainsDefaultParentheses()) {
-                parenthesesViewStr.append("{}");
-            } else {
-                parenthesesViewStr.append("");
+        StringBuilder sb = new StringBuilder();
+        List<TargetView> children = view.getParenthesesViewList();
+        if (CollectionUtils.isNotEmpty(children)) {
+            sb.append("{\n");
+            for (TargetView child : children) {
+                sb.append(generate(child)).append('\n');
             }
+            sb.append('}');
+        } else if (!view.isContainsDefaultParentheses()) {
+            // 原语义：没有子 view 且“不包含默认括号”时输出 "{}"
+            sb.append("{}");
         }
-        parenthesesViewStr.append("\n");
-        return parenthesesViewStr;
+        // 原语义：最后总会追加一个换行
+        sb.append('\n');
+
+        return sb;
     }
 
     private static StringBuilder generateBrackets(TargetView view) {
-        List<TargetView.Property> bracketsPropertyList = view.getBracketsPropertyList();
-        StringBuilder bracketsPropertyStr = new StringBuilder();
-        if (CollectionUtils.isNotEmpty(bracketsPropertyList)) {
-            bracketsPropertyStr.append("(");
-            bracketsPropertyList.forEach(bp -> {
-                bracketsPropertyStr.append(translateProperty(bp));
-                bracketsPropertyStr.append(",");
-            });
-            if (bracketsPropertyStr.toString().trim().endsWith(",")) {
-                bracketsPropertyStr.deleteCharAt(bracketsPropertyStr.lastIndexOf(","));
+        StringBuilder sb = new StringBuilder();
+        List<TargetView.Property> props = view.getBracketsPropertyList();
+        if (CollectionUtils.isNotEmpty(props)) {
+            sb.append('(');
+            boolean first = true;
+            for (TargetView.Property p : props) {
+                String translated = translateProperty(p);
+                if (translated == null) translated = StringUtils.EMPTY;
+
+                if (!first) {
+                    sb.append(',');
+                } else {
+                    first = false;
+                }
+                sb.append(translated);
             }
-            bracketsPropertyStr.append(")");
-            bracketsPropertyStr.append("\n");
-        } else {
-            if (!view.isContainsDefaultConstructor()) {
-                bracketsPropertyStr.append("()");
-            }
+            sb.append(')').append('\n');
+        } else if (!view.isContainsDefaultConstructor()) {
+            // 原语义：没有括号参数且“不包含默认构造”时输出 "()"
+            sb.append("()");
         }
-        bracketsPropertyStr.append("\n");
-        return bracketsPropertyStr;
+        // 原语义：最后一定再追加一个换行
+        sb.append('\n');
+        return sb;
     }
 
     private static String translateProperty(TargetView.Property property) {
         if (property == null || property.getValue() == null) {
             return StringUtils.EMPTY;
         }
-        StringBuilder propertyStr = new StringBuilder();
+        var value = property.getValue();
+        String type = value.getType();
+        if (type == null) {
+            return StringUtils.EMPTY;
+        }
 
-        if (StringUtils.equals(TargetUIPropertyType.key_value.getCode(), property.getValue().getType())) {
-            Map<Object, String> bracketsPropertyValueMap = property.getValue().getValueMap();
-            bracketsPropertyValueMap.forEach((k, v) -> {
-                String key = "";
-                if (k instanceof String) {
-                    key = (String) k;
+        StringBuilder sb = new StringBuilder();
+        switch (type) {
+            case "key_value" -> {
+                Map<Object, String> map = value.getValueMap();
+                if (map == null || map.isEmpty()) {
+                    break;
                 }
-                if (k instanceof TargetView) {
-                    key = generate((TargetView) k);
+
+                boolean first = true;
+                for (Map.Entry<Object, String> e : map.entrySet()) {
+                    Object k = e.getKey();
+                    String v = e.getValue();
+
+                    String key = StringUtils.EMPTY;
+                    if (k instanceof String s) {
+                        key = s;
+                    } else if (k instanceof TargetView tv) {
+                        key = generate(tv);
+                    }
+
+                    if (!first) {
+                        sb.append(',');
+                    } else {
+                        first = false;
+                    }
+
+                    sb.append(key);
+                    if (v != null) {
+                        sb.append(':').append(v);
+                    }
                 }
-
-                propertyStr.append(key);
-                if (v != null) {
-                    propertyStr.append(":");
-                    propertyStr.append(v);
-                }
-                propertyStr.append(",");
-            });
-
+            }
+            case "single_value" -> {
+                String v = value.getValue();
+                if (v != null) sb.append(v);
+            }
+            case "target_view" -> {
+                TargetView tv = value.getTargetView();
+                if (tv != null) sb.append(generate(tv));
+            }
+            default -> {
+                // 保持原语义：未知类型就输出空字符串
+            }
         }
 
-        if (StringUtils.equals(TargetUIPropertyType.single_value.getCode(), property.getValue().getType())) {
-            String value = property.getValue().getValue();
-            propertyStr.append(value);
-//            // number
-//            if (StringUtils.isNumeric(value)) {
-//                propertyStr.append(value);
-//            } else {
-//                //string
-//                propertyStr.append('"').append(value).append('"');
-//            }
-        }
-
-        if (StringUtils.equals(TargetUIPropertyType.target_view.getCode(), property.getValue().getType())) {
-            propertyStr.append(generate(property.getValue().getTargetView()));
-        }
-
-        while (propertyStr.toString().endsWith(",")) {
-            propertyStr.deleteCharAt(propertyStr.lastIndexOf(","));
-        }
-
-        return propertyStr.toString();
+        return sb.toString();
     }
 
     public static String removeEmptyLines(StringBuilder input) {
@@ -229,7 +187,6 @@ public class TargetUICodeGenerator {
                 result.append(line).append("\n");
             }
         }
-
         return result.toString().trim();
     }
 
@@ -280,7 +237,6 @@ public class TargetUICodeGenerator {
     }
 
 
-
     public static String wrapCViewBodyCode(String xmlFilepath, String generateVarCode, String generateUICode) {
         StringBuilder bodyTemplate = new StringBuilder();
         String xmlFileName = getXmlFileNameWithoutExtension(xmlFilepath);
@@ -313,59 +269,59 @@ public class TargetUICodeGenerator {
         return bodyTemplate.toString();
     }
 
-
-
     public static String generateVarCode(List<TargetUIVar> targetUIVarList) {
         if (CollectionUtils.isEmpty(targetUIVarList)) {
             return "";
         }
-
+        StringBuilder out = new StringBuilder();
         Set<String> seen = new HashSet<>();
-        targetUIVarList = targetUIVarList.stream()
-                .filter(e -> seen.add(e.getVarName())).toList();
-
-        List<String> varList = Lists.newArrayList();
-        for (TargetUIVar targetUIVar : targetUIVarList) {
-            StringBuilder var = new StringBuilder();
-            if (StringUtils.isNotBlank(targetUIVar.getPropertyWrapper())) {
-                var.append(targetUIVar.getPropertyWrapper());
-                var.append(" ");
+        boolean firstLine = true;
+        for (TargetUIVar v : targetUIVarList) {
+            String varName = v.getVarName();
+            // 保持原语义：按 varName 去重（注意：varName 为空/null 会被当成同一个 key）
+            if (!seen.add(varName)) {
+                continue;
             }
-            if (StringUtils.isNotBlank(targetUIVar.getAccessKey())) {
-                var.append(targetUIVar.getAccessKey());
-                var.append(" ");
+            String line = buildVarLine(v);
+            if (StringUtils.isBlank(line)) {
+                continue;
             }
-            if (StringUtils.isNotBlank(targetUIVar.getVarName())) {
-                var.append(" var ");
-                var.append(targetUIVar.getVarName());
-                var.append(" ");
+            if (!firstLine) {
+                out.append('\n');
+            } else {
+                firstLine = false;
             }
-            if (StringUtils.isNotBlank(targetUIVar.getVarType())) {
-                var.append(" : ");
-                var.append(targetUIVar.getVarType());
-                var.append(" ");
-            }
-            if (StringUtils.isNotBlank(targetUIVar.getInitValue())) {
-                var.append(" = ");
-                var.append(targetUIVar.getInitValue());
-            }
-            varList.add(var.toString());
+            out.append(line);
         }
 
-        return Joiner.on("\n").join(varList);
+        return out.toString();
     }
 
+    private static String buildVarLine(TargetUIVar v) {
+        StringBuilder sb = new StringBuilder();
+        appendIfNotBlank(sb, v.getPropertyWrapper(), "", " ");
+        appendIfNotBlank(sb, v.getAccessKey(), "", " ");
+        if (StringUtils.isNotBlank(v.getVarName())) {
+            sb.append(" var ").append(v.getVarName()).append(' ');
+        }
+        appendIfNotBlank(sb, v.getVarType(), " : ", " ");
+        appendIfNotBlank(sb, v.getInitValue(), " = ", "");
+        return sb.toString().trim();
+    }
+
+    private static void appendIfNotBlank(StringBuilder sb, String value, String prefix, String suffix) {
+        if (StringUtils.isNotBlank(value)) {
+            sb.append(prefix).append(value).append(suffix);
+        }
+    }
 
     public static String getXmlFileNameWithoutExtension(String filePath) {
         File file = new File(filePath);
-
         String fileName = file.getName();
-
         int dotIndex = fileName.lastIndexOf('.');
         if (dotIndex > 0) {
             fileName = fileName.substring(0, dotIndex);
         }
-
         return fileName;
     }
 
