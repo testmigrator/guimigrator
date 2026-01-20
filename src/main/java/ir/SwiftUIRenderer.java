@@ -29,18 +29,200 @@ public final class SwiftUIRenderer implements BackendRenderer {
 
     private String renderNode(UINode node, int indent) {
         return switch (node.getKind()) {
-            case TEXT -> indent(indent) + applyModifiersInline("Text(" + swiftString(asString(node.getProps().get(SemanticPropKeys.TEXT))) + ")", node);
-            case IMAGE -> indent(indent) + "/* Image src=" + asString(node.getProps().get(SemanticPropKeys.SRC)) + " */";
+            case TEXT -> renderText(node, indent);
+            case IMAGE -> renderImage(node, indent);
             case BUTTON -> renderButton(node, indent);
+
             case COLUMN -> renderVStack(node, indent);
             case ROW -> renderHStack(node, indent);
-            case SPACER -> indent(indent) + "Spacer()";
-            case LINEAR_CONTAINER -> null;
-            case FRAME_CONTAINER -> null;
-            case CONSTRAINT_CONTAINER -> renderVStack(node, indent); // 理论上 normalize 后不会出现
             case STACK -> renderZStack(node, indent);
+
+            case SCROLL -> renderScrollView(node, indent);
+            case DRAWER -> renderDrawerFallback(node, indent);
+
+            case TEXT_FIELD -> renderTextField(node, indent);
+            case TEXT_INPUT_LAYOUT -> renderTextInputLayout(node, indent);
+            case SPINNER -> renderSpinner(node, indent);
+            case LIST -> renderList(node, indent);
+
+            // normalize 后不应该出现，但必须兜底
+            case RELATIVE_CONTAINER, LINEAR_CONTAINER, FRAME_CONTAINER, CONSTRAINT_CONTAINER -> renderFallbackContainer(node, indent);
+
+            case SPACER -> indent(indent) + "Spacer()";
+            case PROGRESS -> renderProgress(node, indent);
+            case ICON_BUTTON -> renderIconButton(node, indent);
+            case AUTO_COMPLETE -> renderAutoComplete(node, indent);
+            case RADIO_GROUP -> renderRadioGroup(node, indent);
+            case RADIO_BUTTON -> renderRadioButton(node, indent);
+
         };
     }
+
+    private String renderProgress(UINode node, int indent) {
+        String expr = "ProgressView()";
+        return indent(indent) + applyModifiersInline(expr, node);
+    }
+    private String renderIconButton(UINode node, int indent) {
+        String src = getStr(node, SemanticPropKeys.SRC, "");
+        String img = src.isBlank()
+                ? "Image(systemName: \"photo\")"
+                : "/* TODO map " + escapeSwiftString(src) + " */ Image(systemName: \"photo\")";
+
+        String block = indent(indent) + "Button(action: { /* TODO */ }) {\n"
+                + indent(indent + 2) + img + "\n"
+                + indent(indent) + "}";
+        return applyModifiersMultiline(block, node, indent);
+    }
+    private String renderAutoComplete(UINode node, int indent) {
+        String hint = getStr(node, "hint", "");
+        String todo = getStr(node, "todo", "");
+        String expr = "TextField(" + swiftString(hint) + ", text: .constant(\"\"))";
+        String line = indent(indent) + applyModifiersInline(expr, node);
+        if (!todo.isBlank()) {
+            return indent(indent) + "/* " + todo + " */\n" + line;
+        }
+        return line;
+    }
+    private String renderRadioGroup(UINode node, int indent) {
+        String ori = getStr(node, "orientation", "vertical").toLowerCase();
+        boolean horizontal = ori.contains("horizontal");
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent))
+                .append(horizontal ? "HStack" : "VStack")
+                .append("(alignment: .leading, spacing: 8) {\n");
+
+        String body = renderChildren(node.children(), indent + 2);
+        if (body.isBlank()) body = indent(indent + 2) + "/* TODO: empty RadioGroup */";
+        sb.append(body).append("\n");
+
+        sb.append(indent(indent)).append("}");
+        return applyModifiersMultiline(sb.toString(), node, indent);
+    }
+
+    private String renderRadioButton(UINode node, int indent) {
+        String text = getStr(node, SemanticPropKeys.TEXT, "Option");
+        // TODO: bind selection state
+        String expr = "Toggle(" + swiftString(text) + ", isOn: .constant(false))";
+        String line = indent(indent) + "/* TODO: RadioButton -> Toggle fallback */\n"
+                + indent(indent) + applyModifiersInline(expr, node);
+        return line;
+    }
+
+
+
+
+    private String renderTextField(UINode node, int indent) {
+        String hint = getStr(node, "hint", "");
+        String expr = "TextField(" + swiftString(hint.isBlank() ? "" : hint) + ", text: .constant(\"\"))";
+        return indent(indent) + applyModifiersInline(expr, node);
+    }
+
+
+    private String renderText(UINode node, int indent) {
+        String text = getStr(node, SemanticPropKeys.TEXT, "");
+        String expr = "Text(" + swiftString(text) + ")";
+        return indent(indent) + applyModifiersInline(expr, node);
+    }
+
+    private String renderImage(UINode node, int indent) {
+        // 先占位，后续你可以把 drawable 映射到 asset name
+        String src = getStr(node, SemanticPropKeys.SRC, "");
+        String expr = src.isBlank()
+                ? "Image(systemName: \"photo\")"
+                : "Image(\"" + escapeSwiftString(src) + "\")";
+        return indent(indent) + applyModifiersInline(expr, node);
+    }
+
+    private String renderTextInputLayout(UINode node, int indent) {
+        String hint = getStr(node, "hint", "");
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent)).append("VStack(alignment: .leading, spacing: 8) {\n");
+
+        if (!hint.isBlank()) {
+            sb.append(indent(indent + 2)).append("Text(").append(swiftString(hint)).append(")\n");
+        } else {
+            sb.append(indent(indent + 2)).append("/* TODO: TextInputLayout label */\n");
+        }
+
+        String child = renderChildren(node.children(), indent + 2);
+        if (child.isBlank()) {
+            sb.append(indent(indent + 2)).append("/* TODO: missing TextField */\n");
+        } else {
+            sb.append(child).append("\n");
+        }
+
+        sb.append(indent(indent)).append("}");
+        // modifiers：多行用 applyModifiersMultiline 更稳（如果你有）
+        return applyModifiersMultiline(sb.toString(), node, indent);
+    }
+    private String renderSpinner(UINode node, int indent) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent)).append("Picker(\"\", selection: .constant(0)) {\n");
+        sb.append(indent(indent + 2)).append("Text(\"TODO\").tag(0)\n");
+        sb.append(indent(indent)).append("}");
+        return applyModifiersMultiline(sb.toString(), node, indent);
+    }
+    private String renderList(UINode node, int indent) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent)).append("List {\n");
+        sb.append(indent(indent + 2)).append("ForEach(0..<5, id: \\.self) { _ in\n");
+        sb.append(indent(indent + 4)).append("Text(\"TODO\")\n");
+        sb.append(indent(indent + 2)).append("}\n");
+        sb.append(indent(indent)).append("}");
+        return applyModifiersMultiline(sb.toString(), node, indent);
+    }
+    private String renderFallbackContainer(UINode node, int indent) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent)).append("VStack(alignment: .leading, spacing: 0) {\n");
+
+        String children = renderChildren(node.children(), indent + 2);
+        if (children.isBlank()) {
+            sb.append(indent(indent + 2)).append("/* TODO: empty container */\n");
+        } else {
+            sb.append(children).append("\n");
+        }
+
+        sb.append(indent(indent)).append("}");
+        return applyModifiersMultiline(sb.toString(), node, indent);
+    }
+
+
+
+
+
+
+
+    private String renderDrawerFallback(UINode node, int indent) {
+        List<UINode> main = node.getSlots().getOrDefault(SlotKey.MAIN_CONTENT, List.of());
+        List<UINode> drawer = node.getSlots().getOrDefault(SlotKey.DRAWER_CONTENT, List.of());
+
+        String drawerBody = renderChildren(drawer, indent + 4);
+        String mainBody = renderChildren(main, indent + 4);
+
+        String expr = indent(indent) + "HStack(spacing: 0) {\n"
+                + indent(indent + 2) + "/* TODO: Drawer interaction (slide-in) */\n"
+                + indent(indent + 2) + "VStack {\n"
+                + (drawerBody.isBlank() ? indent(indent + 4) + "Text(\"Drawer\")" : drawerBody) + "\n"
+                + indent(indent + 2) + "}\n"
+                + indent(indent + 2) + ".frame(width: 280)\n"
+                + indent(indent + 2) + "Divider()\n"
+                + indent(indent + 2) + "VStack {\n"
+                + (mainBody.isBlank() ? indent(indent + 4) + "Text(\"Main\")" : mainBody) + "\n"
+                + indent(indent + 2) + "}\n"
+                + indent(indent) + "}";
+
+        return applyModifiersMultiline(expr, node, indent);
+    }
+
+    private String renderScrollView(UINode node, int indent) {
+        String body = renderChildren(node.children(), indent + 2);
+        String expr = indent(indent) + "ScrollView {\n"
+                + body + (body.isBlank() ? "" : "\n")
+                + indent(indent) + "}";
+        return applyModifiersMultiline(expr, node, indent);
+    }
+
 
     private String renderZStack(UINode node, int indent) {
         String body = renderChildren(node.children(), indent + 2);
@@ -257,11 +439,6 @@ public final class SwiftUIRenderer implements BackendRenderer {
         return null;
     }
 
-    private static String swiftString(String s) {
-        if (s == null) return "\"\"";
-        String escaped = s.replace("\\", "\\\\").replace("\"", "\\\"");
-        return "\"" + escaped + "\"";
-    }
 
     private static String indent(int n) {
         return " ".repeat(Math.max(0, n));
@@ -273,4 +450,20 @@ public final class SwiftUIRenderer implements BackendRenderer {
         if (Character.isDigit(t.charAt(0))) t = "_" + t;
         return Character.toUpperCase(t.charAt(0)) + t.substring(1);
     }
+
+    private String getStr(UINode node, String key, String def) {
+        if (node.getProps() == null) return def;
+        SemanticValue v = node.getProps().get(key);
+        if (v instanceof SemanticValue.Str s) return s.value();
+        return def;
+    }
+
+    private String escapeSwiftString(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private String swiftString(String s) {
+        return "\"" + escapeSwiftString(s == null ? "" : s) + "\"";
+    }
+
 }

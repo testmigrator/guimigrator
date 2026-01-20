@@ -1,4 +1,4 @@
 package ir;
 
-public sealed interface LayoutSpec permits ConstraintLayoutSpec, FrameLayoutSpec, LinearLayoutSpec {
+public sealed interface LayoutSpec permits ConstraintLayoutSpec, FrameLayoutSpec, LinearLayoutSpec, RelativeLayoutSpec {
 }

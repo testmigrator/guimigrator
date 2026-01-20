@@ -73,14 +73,31 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
 
     public void testNewUIPipeline(XmlLayout xmlLayout){
         NodeRuleRegistry registry = new NodeRuleRegistry(new FallbackRule())
+                .register(new DrawerLayoutRule())
+                .register(new RelativeLayoutRule())
                 .register(new ConstraintLayoutRule())
                 .register(new LinearLayoutRule())
                 .register(new FrameLayoutRule())
+                .register(new ScrollViewRule())
+
+                .register(new TextInputLayoutRule())
+                .register(new AutoCompleteTextViewRule())
+                .register(new EditTextRule())
+
+                .register(new RecyclerViewRule())
+                .register(new SpinnerRule())
+
+                .register(new RadioGroupRule())
+                .register(new RadioButtonRule())
+
+                .register(new ImageButtonRule())
+                .register(new ProgressBarRule())
+
                 .register(new TextRule())
-                .register(new ButtonRule())
                 .register(new ImageRule())
-                .register(new ColumnRule())
-                .register(new RowRule());
+                .register(new ButtonRule())
+
+                ;
 
         SemanticTreeTranslator translator = new SemanticTreeTranslator(
                 registry,
@@ -96,10 +113,11 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         LayoutNormalizer layoutNormalizer = new LayoutNormalizer(List.of(
                 new LinearLayoutNormalizerPass(),
                 new FrameLayoutNormalizerPass(),
-                new ConstraintNormalizerPass()
+                new ConstraintNormalizerPass(),
+                new RelativeLayoutNormalizerPass(),
+                new ScrollNormalizerPass()
         ));
         UINode normalized = layoutNormalizer.normalize(uiTree);
-
 
         BackendRenderer compose = new ComposeRenderer();
         BackendRenderer swiftui = new SwiftUIRenderer();

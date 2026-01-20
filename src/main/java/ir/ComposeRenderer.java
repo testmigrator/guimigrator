@@ -33,17 +33,189 @@ public final class ComposeRenderer implements BackendRenderer {
             case TEXT -> renderText(node, indent);
             case IMAGE -> renderImage(node, indent);
             case BUTTON -> renderButton(node, indent);
+
             case COLUMN -> renderColumn(node, indent);
             case ROW -> renderRow(node, indent);
-            case SPACER -> indent(indent) + "Spacer(modifier = Modifier.weight(1f))";
-            case LINEAR_CONTAINER -> null;
-            case FRAME_CONTAINER -> null;
-            case CONSTRAINT_CONTAINER -> renderColumn(node, indent); // 理论上 normalize 后不会出现
             case STACK -> renderBox(node, indent);
+
+            case SCROLL -> renderScroll(node, indent);
+            case DRAWER -> renderDrawer(node, indent);
+
+            case TEXT_FIELD -> renderTextField(node, indent);
+            case TEXT_INPUT_LAYOUT -> renderTextInputLayout(node, indent);
+            case SPINNER -> renderSpinner(node, indent);
+            case LIST -> renderList(node, indent);
+
+            // DEFAULT 这些理论上 normalize 后不应出现，但不能 return null
+            case RELATIVE_CONTAINER, LINEAR_CONTAINER, FRAME_CONTAINER -> renderFallbackContainer(node, indent);
+
+            case CONSTRAINT_CONTAINER -> renderFallbackContainer(node, indent); // not normalized
+            case SPACER -> indent(indent) + "Spacer(modifier = Modifier.weight(1f))";
+            case PROGRESS -> renderProgress(node, indent);
+            case ICON_BUTTON -> renderIconButton(node, indent);
+            case AUTO_COMPLETE -> renderAutoComplete(node, indent);
+            case RADIO_GROUP -> renderRadioGroup(node, indent);
+            case RADIO_BUTTON -> renderRadioButton(node, indent);
+
         };
     }
 
+    private String renderTextField(UINode node, int indent) {
+        String modifier = composeModifier(node);
+        String hint = getStr(node, "hint", "");
+        String value = "\"\"";
+        String onChange = "{}";
 
+        String args = "value = " + value + ", onValueChange = " + onChange;
+        if (!hint.isBlank()) args += ", placeholder = { Text(" + quote(hint) + ") }";
+        if (!modifier.isBlank()) args += ", modifier = " + modifier;
+
+        return indent(indent) + "OutlinedTextField(" + args + ")";
+    }
+
+    private String renderTextInputLayout(UINode node, int indent) {
+        String modifier = composeModifier(node);
+        String hint = getStr(node, "hint", "");
+
+        // child（通常是 TEXT_FIELD）
+        String childBody = renderChildren(node.children(), indent + 2);
+
+        String header = "Column(" + (modifier.isBlank() ? "" : "modifier = " + modifier) + ") {";
+        String label = hint.isBlank()
+                ? indent(indent + 2) + "/* TODO: TextInputLayout label */"
+                : indent(indent + 2) + "Text(" + quote(hint) + ")";
+
+        String body = childBody.isBlank() ? indent(indent + 2) + "/* TODO: missing TextField */" : childBody;
+
+        return indent(indent) + header + "\n"
+                + label + "\n"
+                + body + "\n"
+                + indent(indent) + "}";
+    }
+
+    private String renderSpinner(UINode node, int indent) {
+        String modifier = composeModifier(node);
+        String line = "Text(\"TODO Spinner\")";
+        if (!modifier.isBlank()) line = line.replace(")", ", modifier = " + modifier + ")");
+        return indent(indent) + line;
+    }
+
+    private String renderList(UINode node, int indent) {
+        String modifier = composeModifier(node);
+        String header = "LazyColumn(" + (modifier.isBlank() ? "" : "modifier = " + modifier) + ") {";
+        return indent(indent) + header + "\n"
+                + indent(indent + 2) + "items(5) { Text(\"TODO\") }" + "\n"
+                + indent(indent) + "}";
+    }
+
+    private String renderFallbackContainer(UINode node, int indent) {
+        // 最小兜底：用 Column 包起来，避免 null
+        String modifier = composeModifier(node);
+        String header = "Column(" + (modifier.isBlank() ? "" : "modifier = " + modifier) + ") {";
+        String body = renderChildren(node.children(), indent + 2);
+        if (body.isBlank()) body = indent(indent + 2) + "/* TODO: empty container */";
+        return indent(indent) + header + "\n" + body + "\n" + indent(indent) + "}";
+    }
+
+    private String renderProgress(UINode node, int indent) {
+        String modifier = composeModifier(node);
+        String args = modifier.isBlank() ? "" : "modifier = " + modifier;
+        return indent(indent) + "CircularProgressIndicator(" + args + ")";
+    }
+    private String renderIconButton(UINode node, int indent) {
+        String modifier = composeModifier(node);
+        String src = getStr(node, SemanticPropKeys.SRC, "");
+        String iconExpr = src.isBlank()
+                ? "Icon(Icons.Default.Image, contentDescription = null)"
+                : "/* TODO map " + src + " */ Icon(Icons.Default.Image, contentDescription = null)";
+
+        String header = "IconButton(onClick = {}" + (modifier.isBlank() ? "" : ", modifier = " + modifier) + ") {";
+        return indent(indent) + header + "\n"
+                + indent(indent + 2) + iconExpr + "\n"
+                + indent(indent) + "}";
+    }
+    private String renderAutoComplete(UINode node, int indent) {
+        String modifier = composeModifier(node);
+        String hint = getStr(node, "hint", "");
+        String todo = getStr(node, "todo", "");
+
+        String args = "value = \"\", onValueChange = {}";
+        if (!hint.isBlank()) args += ", placeholder = { Text(" + quote(hint) + ") }";
+        if (!modifier.isBlank()) args += ", modifier = " + modifier;
+
+        String line = indent(indent) + "OutlinedTextField(" + args + ")";
+        if (!todo.isBlank()) {
+            line = indent(indent) + "/* " + todo + " */\n" + line;
+        }
+        return line;
+    }
+    private String renderRadioGroup(UINode node, int indent) {
+        String ori = getStr(node, "orientation", "vertical").toLowerCase();
+        boolean horizontal = ori.contains("horizontal");
+
+        String modifier = composeModifier(node);
+        String header = (horizontal ? "Row" : "Column")
+                + "(" + (modifier.isBlank() ? "" : "modifier = " + modifier) + ") {";
+
+        String body = renderChildren(node.children(), indent + 2);
+        if (body.isBlank()) body = indent(indent + 2) + "/* TODO: empty RadioGroup */";
+
+        return indent(indent) + header + "\n" + body + "\n" + indent(indent) + "}";
+    }
+
+    private String renderRadioButton(UINode node, int indent) {
+        String text = getStr(node, SemanticPropKeys.TEXT, "");
+        String modifier = composeModifier(node);
+
+        // TODO: state binding
+        String rowHeader = "Row(" + (modifier.isBlank() ? "" : "modifier = " + modifier) + ") {";
+        String rb = "RadioButton(selected = false, onClick = {})";
+        String label = text.isBlank() ? "/* TODO label */" : "Text(" + quote(text) + ")";
+
+        return indent(indent) + rowHeader + "\n"
+                + indent(indent + 2) + "/* TODO: bind selection state */\n"
+                + indent(indent + 2) + rb + "\n"
+                + indent(indent + 2) + label + "\n"
+                + indent(indent) + "}";
+    }
+
+
+
+
+    private String renderDrawer(UINode node, int indent) {
+        List<UINode> main = node.getSlots().getOrDefault(SlotKey.MAIN_CONTENT, List.of());
+        List<UINode> drawer = node.getSlots().getOrDefault(SlotKey.DRAWER_CONTENT, List.of());
+
+        String drawerBody = renderChildren(drawer, indent + 4);
+        String mainBody = renderChildren(main, indent + 2);
+
+        // imports 需要：material3 的 ModalNavigationDrawer / DrawerSheet（你可按你的版本调整）
+        return indent(indent) + "ModalNavigationDrawer(\n"
+                + indent(indent + 2) + "drawerContent = {\n"
+                + indent(indent + 4) + "ModalDrawerSheet {\n"
+                + (drawerBody.isBlank() ? indent(indent + 6) + "/* TODO: empty drawer */" : drawerBody) + "\n"
+                + indent(indent + 4) + "}\n"
+                + indent(indent + 2) + "}\n"
+                + indent(indent) + ") {\n"
+                + (mainBody.isBlank() ? indent(indent + 2) + "/* TODO: empty main */" : mainBody) + "\n"
+                + indent(indent) + "}";
+    }
+
+
+
+    private String renderScroll(UINode node, int indent) {
+        // 最小：Compose 用 Column + verticalScroll
+        // 需要 rememberScrollState()：你可以在 RenderResult.imports 增加一条
+        String modifier = composeModifier(node);
+        String scrollMod = (modifier.isBlank() ? "Modifier" : modifier) + ".verticalScroll(rememberScrollState())";
+
+        String header = "Column(modifier = " + scrollMod + ") {";
+        String body = renderChildren(node.children(), indent + 2);
+
+        return indent(indent) + header + "\n"
+                + body + (body.isBlank() ? "" : "\n")
+                + indent(indent) + "}";
+    }
 
 
     private String renderBox(UINode node, int indent) {
@@ -264,4 +436,16 @@ public final class ComposeRenderer implements BackendRenderer {
         if (Character.isDigit(t.charAt(0))) t = "_" + t;
         return t;
     }
+
+    private String getStr(UINode node, String key, String def) {
+        if (node.getProps() == null) return def;
+        SemanticValue v = node.getProps().get(key);
+        if (v instanceof SemanticValue.Str s) return s.value();
+        return def;
+    }
+
+    private String quote(String s) {
+        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
 }

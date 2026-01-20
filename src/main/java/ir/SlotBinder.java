@@ -9,28 +9,38 @@ import java.util.Map;
 public final class SlotBinder {
 
     public Map<SlotKey, List<UINode>> bind(NodeSpec spec, ViewElement src, List<UINode> childNodes) {
-        Map<SlotKey, List<UINode>> slots = new EnumMap<>(SlotKey.class);
 
+        // 1) Drawer 特判（不依赖 SlotPolicy）
+        if (spec.getKind() == UIKind.DRAWER) {
+            var split = DrawerLayoutRule.splitChildren(childNodes, src.getChildren());
+            return Map.of(
+                    SlotKey.MAIN_CONTENT, split.main(),
+                    SlotKey.DRAWER_CONTENT, split.drawer()
+            );
+        }
+
+        // 2) 默认容器：CONTENT
+        Map<SlotKey, List<UINode>> slots = new EnumMap<>(SlotKey.class);
         SlotPolicy policy = spec.getSlotPolicy();
-        if (policy == null) {
-            // 默认：容器语义（最小闭环可接受）
+
+        if (policy == null || policy == SlotPolicy.CONTENT_ONLY) {
             slots.put(SlotKey.CONTENT, childNodes);
             return slots;
         }
 
+        // 3) 其它 slot policy
         switch (policy) {
-            case CONTENT_ONLY -> {
-                slots.put(SlotKey.CONTENT, childNodes);
-            }
             case BUTTON_LABEL -> {
-                // LABEL：优先 android:text 生成 Text 节点
                 String text = attr(src, "android:text");
+
                 if (text != null && !text.isBlank()) {
                     UINode label = UINode.builder()
                             .kind(UIKind.TEXT)
-                            .prop(SemanticPropKeys.TEXT, new SemanticValue.Str(text))
+                            .id(null)
+                            .props(Map.of(SemanticPropKeys.TEXT, new SemanticValue.Str(text)))
+                            .modifiers(List.of())
+                            .slots(Map.of())
                             .source(UINode.SourceSpan.builder()
-                                    .xmlFile(spec.getSourceSpan() != null ? spec.getSourceSpan().getXmlFile() : null)
                                     .viewType("Text(label)")
                                     .viewUid(src.getUid())
                                     .build())
@@ -41,12 +51,18 @@ public final class SlotBinder {
                 } else {
                     slots.put(SlotKey.LABEL, List.of());
                 }
-                // Button 默认不接收 CONTENT children（语义上是 label slot）
+
+                // Button 语义：只有 label slot，不要把 childNodes 塞 CONTENT
+                return slots;
+            }
+            default -> {
+                // safety fallback
+                slots.put(SlotKey.CONTENT, childNodes);
+                return slots;
             }
         }
-
-        return slots;
     }
+
 
     private static String attr(ViewElement e, String key) {
         if (e.getAttributes() == null) return null;
