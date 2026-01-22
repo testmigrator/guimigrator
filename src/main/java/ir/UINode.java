@@ -3,6 +3,7 @@ package ir;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
+import lombok.ToString;
 
 import java.util.*;
 
@@ -11,6 +12,7 @@ import java.util.*;
  */
 @Getter
 @Builder(toBuilder = true)
+@ToString
 public final class UINode {
 
     private final UIKind kind;

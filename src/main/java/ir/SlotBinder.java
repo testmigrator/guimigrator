@@ -3,6 +3,7 @@ package ir;
 import entity.resource.ViewElement;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,28 +32,33 @@ public final class SlotBinder {
         // 3) 其它 slot policy
         switch (policy) {
             case BUTTON_LABEL -> {
-                String text = attr(src, "android:text");
+                Map<String, SemanticValue> lp = new HashMap<>();
 
+                String text = attr(src, "android:text");
                 if (text != null && !text.isBlank()) {
-                    UINode label = UINode.builder()
-                            .kind(UIKind.TEXT)
-                            .id(null)
-                            .props(Map.of(SemanticPropKeys.TEXT, new SemanticValue.Str(text)))
-                            .modifiers(List.of())
-                            .slots(Map.of())
-                            .source(UINode.SourceSpan.builder()
-                                    .viewType("Text(label)")
-                                    .viewUid(src.getUid())
-                                    .build())
-                            .build();
-                    slots.put(SlotKey.LABEL, List.of(label));
-                } else if (!childNodes.isEmpty()) {
-                    slots.put(SlotKey.LABEL, List.of(childNodes.get(0)));
-                } else {
-                    slots.put(SlotKey.LABEL, List.of());
+                    lp.put(SemanticPropKeys.TEXT, new SemanticValue.Str(text));
                 }
 
-                // Button 语义：只有 label slot，不要把 childNodes 塞 CONTENT
+                // ✅ 这里把 common text props 补齐（直接读 src attrs）
+                String tc = attr(src, "android:textColor");
+                if (tc != null) lp.put(SemanticPropKeys.TEXT_COLOR, new SemanticValue.Str(tc));
+
+                String ts = attr(src, "android:textSize");
+                if (ts != null) lp.put(SemanticPropKeys.TEXT_SIZE, new SemanticValue.Str(ts));
+
+                UINode label = UINode.builder()
+                        .kind(UIKind.TEXT)
+                        .props(Map.copyOf(lp))
+                        .slots(Map.of(SlotKey.CONTENT, List.of()))
+                        .source(UINode.SourceSpan.builder()
+                                .xmlFile(spec.getSourceSpan() != null ? spec.getSourceSpan().getXmlFile() : null)
+                                .viewType("Text(label)")
+                                .viewUid(src.getUid())
+                                .build())
+                        .build();
+
+                slots.put(SlotKey.LABEL, List.of(label));
+
                 return slots;
             }
             default -> {

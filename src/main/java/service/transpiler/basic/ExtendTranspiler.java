@@ -317,7 +317,7 @@ public class ExtendTranspiler {
         value.setType(TargetUIPropertyType.single_value.getCode());
 
         if (background.startsWith("@android:color")){
-            //TODO :
+            //TODO :default
             value.setValue("Color.black");
         }
         if (BasicTranspiler.isHexString(background)){

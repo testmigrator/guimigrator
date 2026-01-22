@@ -108,6 +108,49 @@ public final class ComposeRenderer implements BackendRenderer {
                 + indent(indent) + "}";
     }
 
+    private String renderText(UINode node, int indent) {
+        String text = quote(getStr(node, SemanticPropKeys.TEXT, ""));
+        String modifier = composeModifier(node);
+
+        String colorRaw = getStr(node, SemanticPropKeys.TEXT_COLOR, null);
+        String sizeRaw  = getStr(node, SemanticPropKeys.TEXT_SIZE, null);
+
+        String args = "text = " + text;
+        if (!modifier.isBlank()) args += ", modifier = " + modifier;
+
+        if (colorRaw != null) args += ", color = " + composeColor(colorRaw);
+        if (sizeRaw != null)  args += ", fontSize = " + composeSp(sizeRaw);
+
+        return indent(indent) + "Text(" + args + ")";
+    }
+
+    private String composeColor(String raw) {
+        // raw 可能是 "#RRGGBB"/"#AARRGGBB" 或 "Color.xxx" 或 "@color/xxx"
+        if (raw == null) return "Color.Unspecified";
+        raw = raw.trim();
+        if (raw.startsWith("Color.")) return raw;
+        if (raw.startsWith("#")) {
+            String hex = raw.substring(1);
+            if (hex.length() == 6) return "Color(0xFF" + hex.toUpperCase() + ")";
+            if (hex.length() == 8) return "Color(0x" + hex.toUpperCase() + ")";
+        }
+        return "Color.Unspecified";
+    }
+
+    private String composeSp(String raw) {
+        raw = raw.trim().toLowerCase();
+        if (raw.endsWith("sp")) {
+            String n = raw.substring(0, raw.length() - 2).trim();
+            return n + ".sp";
+        }
+        // dp/px 暂时不做，给默认
+        return "TextUnit.Unspecified";
+    }
+
+
+
+
+
     private String renderFallbackContainer(UINode node, int indent) {
         // 最小兜底：用 Column 包起来，避免 null
         String modifier = composeModifier(node);
@@ -228,12 +271,6 @@ public final class ComposeRenderer implements BackendRenderer {
     }
 
 
-    private String renderText(UINode node, int indent) {
-        String text = asString(node.getProps().get(SemanticPropKeys.TEXT));
-        String line = "Text(text = " + kotlinString(text) + renderComposeModifierArg(node) + ")";
-        return indent(indent) + line;
-    }
-
     private String renderImage(UINode node, int indent) {
         String src = asString(node.getProps().get(SemanticPropKeys.SRC));
         return indent(indent) + "/* Image src=" + src + " */";
@@ -327,22 +364,31 @@ public final class ComposeRenderer implements BackendRenderer {
 
     private String composeModifier(UINode node) {
         if (node.getModifiers() == null || node.getModifiers().isEmpty()) return "";
-        String expr = "Modifier";
+
+        boolean hasWeight = node.getModifiers().stream().anyMatch(mod -> mod instanceof Modifier.Weight);
+
+        StringBuilder sb = new StringBuilder("Modifier");
 
         for (Modifier m : node.getModifiers()) {
-            expr += switch (m) {
+            // ✅ Row/Column weight 下不需要 fillMaxWidth
+            if (hasWeight && m instanceof Modifier.FillMax fm && fm.width()) {
+                continue;
+            }
+
+            String seg = switch (m) {
+                case Modifier.Weight w -> ".weight(" + w.value() + "f)";
                 case Modifier.FillMax f -> {
                     String s = "";
-                    if (f.width()) s += ".fillMaxWidth()";
+                    if (f.width())  s += ".fillMaxWidth()";
                     if (f.height()) s += ".fillMaxHeight()";
                     yield s;
                 }
                 case Modifier.Size s -> {
-                    String w = s.width() == null ? null : s.width() + ".dp";
-                    String h = s.height() == null ? null : s.height() + ".dp";
-                    if (w != null && h != null) yield ".size(" + w + ", " + h + ")";
-                    if (w != null) yield ".width(" + w + ")";
-                    if (h != null) yield ".height(" + h + ")";
+                    String wv = s.width() == null ? null : s.width() + ".dp";
+                    String hv = s.height() == null ? null : s.height() + ".dp";
+                    if (wv != null && hv != null) yield ".size(" + wv + ", " + hv + ")";
+                    if (wv != null) yield ".width(" + wv + ")";
+                    if (hv != null) yield ".height(" + hv + ")";
                     yield "";
                 }
                 case Modifier.Padding p -> composePadding(p);
@@ -350,10 +396,13 @@ public final class ComposeRenderer implements BackendRenderer {
                 case Modifier.Background b -> ".background(" + composeBackground(b.color()) + ")";
                 case Modifier.Align a -> ""; // 先不做（scope 相关）
             };
+
+            if (!seg.isBlank()) sb.append(seg);
         }
 
-        return expr.equals("Modifier") ? "" : expr;
+        return sb.toString().equals("Modifier") ? "" : sb.toString();
     }
+
 
     private String composePadding(Modifier.Padding p) {
         double v = p.value();
@@ -384,15 +433,35 @@ public final class ComposeRenderer implements BackendRenderer {
         if (edges.contains(Modifier.Padding.Edge.END)) return ".padding(end = " + v + ".dp)";
         if (edges.contains(Modifier.Padding.Edge.TOP)) return ".padding(top = " + v + ".dp)";
         if (edges.contains(Modifier.Padding.Edge.BOTTOM)) return ".padding(bottom = " + v + ".dp)";
+
         return "";
     }
 
     private String composeBackground(SemanticValue v) {
-        // 最小闭环：支持 "Color.xxx" 或占位
         if (v instanceof SemanticValue.Str s) {
             String raw = s.value();
-            if (raw != null && raw.startsWith("Color.")) return raw;
-            // "@color/xxx" 暂时占位
+            if (raw == null) return "Color.Unspecified";
+
+            raw = raw.trim();
+            // 已经是 Compose 代码
+            if (raw.startsWith("Color.")) return raw;
+
+            // ✅ 支持 #RRGGBB / #AARRGGBB
+            if (raw.startsWith("#")) {
+                String hex = raw.substring(1);
+                if (hex.length() == 6) {           // RRGGBB -> FF RRGGBB
+                    return "Color(0xFF" + hex.toUpperCase() + ")";
+                } else if (hex.length() == 8) {    // AARRGGBB
+                    return "Color(0x" + hex.toUpperCase() + ")";
+                }
+                // 其他长度当作未知
+                return "Color.Unspecified";
+            }
+
+            // "@color/xxx" 这类如果还没 resolve，也给占位
+            if (raw.startsWith("@")) return "Color.Unspecified";
+
+            // 其他字符串（比如 "red"）暂不支持
             return "Color.Unspecified";
         }
         if (v instanceof SemanticValue.Expr e) return e.code();

@@ -22,6 +22,7 @@ public final class MigrationPipeline {
             UIResourceContext context;
             try (StageTimer t = metrics.stage("pipeline.parse")) {
                 context = parser.parse(taskParam);
+
             }
 
             List<TargetUICode> codes;

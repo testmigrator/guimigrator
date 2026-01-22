@@ -46,10 +46,11 @@ public final class SemanticTreeTranslator {
                 .build();
     }
 
-    private static Map<String, SemanticValue> mergeProps(Map<String, SemanticValue> a, Map<String, SemanticValue> b) {
+    private Map<String, SemanticValue> mergeProps(Map<String, SemanticValue> specProps,
+                                                  Map<String, SemanticValue> commonProps) {
         Map<String, SemanticValue> out = new HashMap<>();
-        if (a != null) out.putAll(a);
-        if (b != null) out.putAll(b); // common 覆盖同名 key（一般不会冲突）
+        if (commonProps != null) out.putAll(commonProps);
+        if (specProps != null) out.putAll(specProps); // spec wins
         return Map.copyOf(out);
     }
 

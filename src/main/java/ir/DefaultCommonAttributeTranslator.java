@@ -24,10 +24,21 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
 
         // background
         String bg = v(a, "android:background");
+//        System.out.println("ViewElementViewElementViewElementViewElementViewElement:"+e);
+//        System.out.println("backgroundbackgroundbackgroundbackgroundbackgroundbackground: "+bg);
         if (bg != null) mods.add(new Modifier.Background(new SemanticValue.Str(bg)));
 
         // size
         applySize(v(a, "android:layout_width"), v(a, "android:layout_height"), mods);
+
+        // layout_weight (only meaningful inside LinearLayout -> Row/Column)
+        String w = v(a, "android:layout_weight");
+        if (w != null) {
+            Float wf = parseFloatSafe(w);
+            if (wf != null && wf > 0f) {
+                mods.add(new Modifier.Weight(wf));
+            }
+        }
 
         // padding
         applyEdgeInsets(
@@ -43,20 +54,45 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         );
 
         // margin
+        String marginStart = firstNonNull(v(a,"android:layout_marginStart"), v(a,"android:layout_marginLeft"));
+        String marginEnd   = firstNonNull(v(a,"android:layout_marginEnd"),   v(a,"android:layout_marginRight"));
+
         applyEdgeInsets(
                 v(a, "android:layout_margin"),
                 v(a, "android:layout_marginHorizontal"),
                 v(a, "android:layout_marginVertical"),
-                v(a, "android:layout_marginStart"),
-                v(a, "android:layout_marginEnd"),
+                marginStart,
+                marginEnd,
                 v(a, "android:layout_marginTop"),
                 v(a, "android:layout_marginBottom"),
                 false,
                 mods
         );
 
+
+        // textColor (only meaningful for TEXT-like nodes; we put in props and let rules/renderer decide)
+        String textColor = v(a, "android:textColor");
+        if (textColor != null) props.put(SemanticPropKeys.TEXT_COLOR, new SemanticValue.Str(textColor));
+
+        // textSize (e.g., "16sp", "20sp"; store raw and render later)
+        String textSize = v(a, "android:textSize");
+        if (textSize != null) props.put(SemanticPropKeys.TEXT_SIZE, new SemanticValue.Str(textSize));
+
+
         return new CommonAttrs(List.copyOf(mods), Map.copyOf(props));
     }
+
+    private static String firstNonNull(String a, String b) {
+        return a != null ? a : b;
+    }
+    private static Float parseFloatSafe(String s) {
+        try {
+            return Float.parseFloat(s.replace("f","").trim());
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
 
     private static String v(Map<String, String> a, String k) {
         String x = a.get(k);

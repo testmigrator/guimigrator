@@ -5,6 +5,7 @@ import entity.UIResourceContext;
 import entity.enums.DrawableDPITypeEnum;
 import entity.enums.ResourceTypeEnum;
 import entity.resource.*;
+import ir.DrawableSelector;
 import service.MetricCollector;
 import utils.GetFoldFileNames;
 
@@ -33,6 +34,8 @@ public class DefaultUIResourceContextParser implements UIResourceContextParser{
         DrawableElements defaultDrawables = DrawableParser.process(resourcePath, DrawableDPITypeEnum.drawable);
         DrawableElements hdpiDrawables = DrawableParser.process(resourcePath, DrawableDPITypeEnum.drawable_hdpi);
 
+        Map<String, DrawableSelector> drawableSelectors = DrawableParser.processSelector(resourcePath);
+
         List<XmlLayout> layouts = LayoutXmlParser.process(resourcePath);
         Map<String, ViewElement> viewMap = LayoutXmlParser.processViewMap(layouts);
 
@@ -40,7 +43,7 @@ public class DefaultUIResourceContextParser implements UIResourceContextParser{
                 strings, dims, colors,
                 styles,
                 defaultDrawables, hdpiDrawables,
-                layouts, viewMap
+                layouts, viewMap, drawableSelectors
         );
     }
 

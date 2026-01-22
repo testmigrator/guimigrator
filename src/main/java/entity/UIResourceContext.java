@@ -1,6 +1,7 @@
 package entity;
 
 import entity.resource.*;
+import ir.DrawableSelector;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,10 +13,12 @@ public record UIResourceContext(
         ResourceValues stringValues,
         ResourceValues dimValues,
         ResourceValues colorValues,
-        List<StyleValue> styleValues, // 你可以换成具体类型
+        List<StyleValue> styleValues, // 可以换成具体类型
         DrawableElements defaultDrawableElements,
         DrawableElements hdpiDrawableElements,
         List<XmlLayout> xmlLayouts,
-        Map<String, ViewElement> viewElementMap
+        Map<String, ViewElement> viewElementMap,
+        Map<String, DrawableSelector> drawableSelectors
+
 ) {
 }

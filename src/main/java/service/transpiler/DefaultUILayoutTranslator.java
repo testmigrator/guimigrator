@@ -125,10 +125,15 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         String baseName = TargetUICodeGenerator.getXmlFileNameWithoutExtension(xmlLayout.getXmlFilepath());
 
         BackendRenderer.RenderResult r1 = compose.render(normalized, new BackendRenderer.RenderConfig(baseName));
-        BackendRenderer.RenderResult r2 = swiftui.render(normalized, new BackendRenderer.RenderConfig(baseName));
-
+        System.out.println(r1.filename());
         System.out.println(r1.code());
-        System.out.println(r2.code());
+        System.out.println();
+        System.out.println();
+        System.out.println();
+
+//      TODO swiftui
+//        BackendRenderer.RenderResult r2 = swiftui.render(normalized, new BackendRenderer.RenderConfig(baseName));
+//        System.out.println(r2.code());
     }
 
     private TargetUICode generateTargetUICode(XmlLayout xmlLayout, UIResourceContext context, TaskParam taskParam) {
@@ -168,6 +173,41 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
 
     }
 
+    /** TODO backup **/
+    private TargetUICode generateTargetUICode2(XmlLayout xmlLayout, UIResourceContext context, TaskParam taskParam) {
+
+         ViewElement viewElement = xmlLayout.getViewElement();
+         String targetPlatform = taskParam.getTargetPlatform();
+
+         UITranspiler uiTranspiler = createTranspiler(targetPlatform, viewElement.getType());
+         if (uiTranspiler == null) {
+         return null;
+         }
+
+         String filename = fetchFilename(xmlLayout);
+
+         XmlLayoutVarCollector.init();
+         XmlLayoutVarCollector.xmlLayoutPath = xmlLayout.getXmlFilepath();
+
+         try {
+         TargetView targetView = uiTranspiler.translate(viewElement);
+
+         String varCode = TargetUICodeGenerator.generateVarCode(XmlLayoutVarCollector.targetUIVarList);
+         String uICode = TargetUICodeGenerator.generate(targetView);
+         String wrapped = wrap(targetPlatform, xmlLayout.getXmlFilepath(), varCode, uICode);
+
+         return TargetUICode.builder()
+         .filename(filename)
+         .xmlFilepath(xmlLayout.getXmlFilepath())
+         .translateCode(wrapped)
+         .build();
+         } finally {
+         XmlLayoutVarCollector.clear();
+         }
+
+    }
+
+
     private void fillAndUpdateAttrValue(ViewElement viewElement, UIResourceContext context) {
         Map<String, String> attributes = viewElement.getAttributes();
         for (Map.Entry<String, String> entry : attributes.entrySet()) {
@@ -203,7 +243,22 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
             return context.dimValues().getValueMap().getOrDefault(key, StringUtils.EMPTY);
         }
 
-        // drawable/layout 保留引用
+        // ✅ 简单 drawable selector 支持：只解析默认态
+        if (attrValue.startsWith("@drawable/")) {
+            String key = attrValue.substring("@drawable/".length());
+
+            if (context.drawableSelectors() != null) {
+                DrawableSelector sel = context.drawableSelectors().get(key);
+                if (sel != null && sel.getDefaultDrawable() != null) {
+                    // 递归解析 defaultDrawable（通常是 @color/xxx）
+                    return resolveReference(sel.getDefaultDrawable(), context);
+                }
+            }
+            // fallback：保留引用（renderer 可输出 TODO）
+            return attrValue;
+        }
+
+        // layout 保留引用
         return attrValue;
     }
 
