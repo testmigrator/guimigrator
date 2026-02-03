@@ -17,7 +17,6 @@ public final class ComposeRenderer implements BackendRenderer {
                 .append("import androidx.compose.runtime.*\n")
                 .append("import androidx.compose.ui.Alignment\n")
                 .append("import androidx.compose.ui.Modifier\n")
-                .append("import androidx.compose.ui.draw.alpha\n")
                 .append("import androidx.compose.ui.graphics.Color\n")
                 .append("import androidx.compose.foundation.Image\n")
                 .append("import androidx.compose.ui.res.painterResource\n")
@@ -124,13 +123,39 @@ public final class ComposeRenderer implements BackendRenderer {
         String colorRaw = getStr(node, SemanticPropKeys.TEXT_COLOR, null);
         String sizeRaw  = getStr(node, SemanticPropKeys.TEXT_SIZE, null);
 
+        String dStart = getStr(node, SemanticPropKeys.DRAWABLE_START, "").trim();
+        String dEnd = getStr(node, SemanticPropKeys.DRAWABLE_END, "").trim();
+        String dPad = getStr(node, SemanticPropKeys.DRAWABLE_PADDING, "").trim();
+
         String args = "text = " + text;
         if (!modifier.isBlank()) args += ", modifier = " + modifier;
-
         if (colorRaw != null) args += ", color = " + composeColor(colorRaw);
         if (sizeRaw != null)  args += ", fontSize = " + composeSp(sizeRaw);
 
-        return indent(indent) + "Text(" + args + ")";
+        boolean hasDrawable = !dStart.isBlank() || !dEnd.isBlank();
+        if (!hasDrawable) {
+            return indent(indent) + "Text(" + args + ")";
+        }
+
+        String spacing = composeDpOrZero(dPad);
+        String rowArgs = modifier.isBlank() ? "" : "modifier = " + modifier;
+        if (!spacing.isBlank()) {
+            if (!rowArgs.isBlank()) rowArgs += ", ";
+            rowArgs += "horizontalArrangement = Arrangement.spacedBy(" + spacing + ")";
+        }
+        rowArgs = rowArgs.isBlank() ? "" : rowArgs;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent)).append("Row(").append(rowArgs).append(") {\n");
+        if (!dStart.isBlank()) {
+            sb.append(indent(indent + 2)).append(composeDrawableImage(dStart)).append('\n');
+        }
+        sb.append(indent(indent + 2)).append("Text(").append(args.replace(", modifier = " + modifier, "")).append(")\n");
+        if (!dEnd.isBlank()) {
+            sb.append(indent(indent + 2)).append(composeDrawableImage(dEnd)).append('\n');
+        }
+        sb.append(indent(indent)).append("}");
+        return sb.toString();
     }
 
     private String composeColor(String raw) {
@@ -340,9 +365,42 @@ public final class ComposeRenderer implements BackendRenderer {
         String modifierArg = composeModifier(node);
         if (!modifierArg.isBlank()) sb.append(", modifier = ").append(modifierArg);
 
-        sb.append(") {\n")
-          .append(label).append('\n')
-          .append(indent(indent)).append("}");
+        sb.append(") {\n");
+
+        String dStart = getStr(node, SemanticPropKeys.DRAWABLE_START, "").trim();
+        String dEnd = getStr(node, SemanticPropKeys.DRAWABLE_END, "").trim();
+        String dPad = getStr(node, SemanticPropKeys.DRAWABLE_PADDING, "").trim();
+        boolean hasDrawable = !dStart.isBlank() || !dEnd.isBlank();
+
+        if (!hasDrawable) {
+            sb.append(label).append('\n');
+        } else {
+            String spacing = composeDpOrDefault(dPad, 8.0);
+
+            sb.append(indent(indent + 2)).append("Box(modifier = Modifier.fillMaxWidth()) {\n");
+            if (!dStart.isBlank()) {
+                sb.append(indent(indent + 4)).append("Row(modifier = Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {\n");
+                sb.append(indent(indent + 6)).append(composeDrawableImage(dStart)).append('\n');
+                if (!spacing.isBlank()) {
+                    sb.append(indent(indent + 6)).append("Spacer(modifier = Modifier.width(").append(spacing).append("))\n");
+                }
+                sb.append(indent(indent + 4)).append("}\n");
+            }
+            if (!dEnd.isBlank()) {
+                sb.append(indent(indent + 4)).append("Row(modifier = Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically) {\n");
+                if (!spacing.isBlank()) {
+                    sb.append(indent(indent + 6)).append("Spacer(modifier = Modifier.width(").append(spacing).append("))\n");
+                }
+                sb.append(indent(indent + 6)).append(composeDrawableImage(dEnd)).append('\n');
+                sb.append(indent(indent + 4)).append("}\n");
+            }
+            sb.append(indent(indent + 4)).append("Box(modifier = Modifier.align(Alignment.Center)) {\n");
+            sb.append(indent(indent + 6)).append(label.trim()).append('\n');
+            sb.append(indent(indent + 4)).append("}\n");
+            sb.append(indent(indent + 2)).append("}\n");
+        }
+
+        sb.append(indent(indent)).append("}");
         return sb.toString();
     }
 
@@ -447,6 +505,12 @@ public final class ComposeRenderer implements BackendRenderer {
                     if (f.height()) s += ".fillMaxHeight()";
                     yield s;
                 }
+                case Modifier.WrapContent w -> {
+                    String s = "";
+                    if (w.width())  s += ".wrapContentWidth()";
+                    if (w.height()) s += ".wrapContentHeight()";
+                    yield s;
+                }
                 case Modifier.Size s -> {
                     String wv = s.width() == null ? null : s.width() + ".dp";
                     String hv = s.height() == null ? null : s.height() + ".dp";
@@ -548,6 +612,38 @@ public final class ComposeRenderer implements BackendRenderer {
         if (v instanceof SemanticValue.Str s) return s.value();
         if (v instanceof SemanticValue.Expr e) return e.code();
         return v.toString();
+    }
+
+    private String composeDrawableImage(String ref) {
+        String r = ref.trim();
+        if (r.startsWith("@drawable/")) {
+            String name = r.substring("@drawable/".length());
+            return "Image(painter = painterResource(id = R.drawable." + name + "), contentDescription = null)";
+        }
+        if (r.startsWith("@android:drawable/")) {
+            String name = r.substring("@android:drawable/".length());
+            return "Image(painter = painterResource(id = android.R.drawable." + name + "), contentDescription = null)";
+        }
+        return "/* TODO drawable " + r + " */";
+    }
+
+    private String composeDpOrZero(String raw) {
+        Double v = parseDpNumber(raw);
+        return v == null ? "" : v + ".dp";
+    }
+
+    private String composeDpOrDefault(String raw, double defDp) {
+        Double v = parseDpNumber(raw);
+        return (v == null) ? (defDp + ".dp") : (v + ".dp");
+    }
+
+    private static Double parseDpNumber(String v) {
+        if (v == null) return null;
+        String t = v.trim().toLowerCase();
+        if (t.isBlank()) return null;
+        if (t.endsWith("dp")) t = t.substring(0, t.length() - 2).trim();
+        if (t.equals("wrap_content") || t.equals("match_parent") || t.equals("0dp")) return null;
+        try { return Double.valueOf(t); } catch (Exception ex) { return null; }
     }
 
     private static Boolean asBool(SemanticValue v) {

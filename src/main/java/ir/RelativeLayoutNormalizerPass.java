@@ -146,6 +146,9 @@ public final class RelativeLayoutNormalizerPass implements LayoutPass {
 
         List<UINode> out = new ArrayList<>(children.size());
         for (UINode child : children) {
+            if (isGone(child)) {
+                continue;
+            }
             String id = child.getId();
             if (id == null) {
                 out.add(child);
@@ -164,10 +167,11 @@ public final class RelativeLayoutNormalizerPass implements LayoutPass {
             }
 
             // 用一个填充父容器的 Box 来承接 alignment
+            boolean fullHeight = needsFullHeight(align);
             UINode wrapper = UINode.builder()
                     .kind(UIKind.STACK)
                     .prop(SemanticPropKeys.BOX_ALIGNMENT, new SemanticValue.Str(align))
-                    .modifier(new Modifier.FillMax(true, true))
+                    .modifier(new Modifier.FillMax(true, fullHeight))
                     .slot(SlotKey.CONTENT, List.of(child))
                     .build();
             out.add(wrapper);
@@ -179,6 +183,7 @@ public final class RelativeLayoutNormalizerPass implements LayoutPass {
         boolean bottom = r.isAlignParentBottom();
         boolean top = r.isAlignParentTop();
         boolean center = r.isCenterInParent() || r.isCenterHorizontal();
+        boolean centerV = r.isCenterVertical();
         boolean start = r.isAlignParentStart();
         boolean end = r.isAlignParentEnd();
 
@@ -192,8 +197,30 @@ public final class RelativeLayoutNormalizerPass implements LayoutPass {
             if (start) return "topStart";
             return center ? "topCenter" : "topStart";
         }
+        if (start) {
+            if (centerV) return "centerStart";
+            return "topStart";
+        }
+        if (end) {
+            if (centerV) return "centerEnd";
+            return "topEnd";
+        }
         if (r.isCenterInParent()) return "center";
         if (r.isCenterHorizontal()) return "center";
         return null;
+    }
+
+    private boolean needsFullHeight(String align) {
+        if (align == null) return false;
+        if (align.startsWith("bottom") || align.startsWith("top")) return true;
+        return "center".equals(align) || "bottomCenter".equals(align) || "topCenter".equals(align);
+    }
+
+    private boolean isGone(UINode node) {
+        SemanticValue v = node.getProps() == null ? null : node.getProps().get(SemanticPropKeys.VISIBILITY);
+        if (v instanceof SemanticValue.Str s) {
+            return "gone".equalsIgnoreCase(s.value());
+        }
+        return false;
     }
 }

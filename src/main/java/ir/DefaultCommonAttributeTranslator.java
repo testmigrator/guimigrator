@@ -88,6 +88,14 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         String textSize = v(a, "android:textSize");
         if (textSize != null) props.put(SemanticPropKeys.TEXT_SIZE, new SemanticValue.Str(textSize));
 
+        // compound drawables (TextView/Button)
+        String dStart = firstNonNull(v(a, "android:drawableStart"), v(a, "android:drawableLeft"));
+        String dEnd = firstNonNull(v(a, "android:drawableEnd"), v(a, "android:drawableRight"));
+        if (dStart != null) props.put(SemanticPropKeys.DRAWABLE_START, new SemanticValue.Str(dStart));
+        if (dEnd != null) props.put(SemanticPropKeys.DRAWABLE_END, new SemanticValue.Str(dEnd));
+        String dPad = v(a, "android:drawablePadding");
+        if (dPad != null) props.put(SemanticPropKeys.DRAWABLE_PADDING, new SemanticValue.Str(dPad));
+
 
         return new CommonAttrs(List.copyOf(mods), Map.copyOf(props));
     }
@@ -117,6 +125,10 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
 
         if (fillW || fillH) mods.add(new Modifier.FillMax(fillW, fillH));
 
+        boolean wrapW = isWrapContent(w);
+        boolean wrapH = isWrapContent(h);
+        if (wrapW || wrapH) mods.add(new Modifier.WrapContent(wrapW, wrapH));
+
         Double dpW = parseDpNumber(w);
         Double dpH = parseDpNumber(h);
         if (dpW != null || dpH != null) mods.add(new Modifier.Size(dpW, dpH));
@@ -128,6 +140,10 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
 
     private static boolean isMatchConstraints(String v) {
         return v != null && v.equalsIgnoreCase("0dp");
+    }
+
+    private static boolean isWrapContent(String v) {
+        return v != null && v.equalsIgnoreCase("wrap_content");
     }
 
     private static Double parseDpNumber(String v) {

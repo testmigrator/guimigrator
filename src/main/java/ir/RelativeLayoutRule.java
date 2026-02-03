@@ -29,6 +29,7 @@ public final class RelativeLayoutRule implements NodeRule {
 
                 boolean centerH = boolAttr(a, "android:layout_centerHorizontal");
                 boolean centerP = boolAttr(a, "android:layout_centerInParent");
+                boolean centerV = boolAttr(a, "android:layout_centerVertical");
 
                 boolean apt = boolAttr(a, "android:layout_alignParentTop");
                 boolean apb = boolAttr(a, "android:layout_alignParentBottom");
@@ -40,6 +41,7 @@ public final class RelativeLayoutRule implements NodeRule {
                         .aboveId(above)
                         .centerHorizontal(centerH)
                         .centerInParent(centerP)
+                        .centerVertical(centerV)
                         .alignParentTop(apt)
                         .alignParentBottom(apb)
                         .alignParentStart(aps)

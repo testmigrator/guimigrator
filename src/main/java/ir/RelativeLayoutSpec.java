@@ -21,6 +21,7 @@ public final class RelativeLayoutSpec implements LayoutSpec {
 
         private final boolean centerHorizontal; // android:layout_centerHorizontal="true"
         private final boolean centerInParent;   // android:layout_centerInParent="true"
+        private final boolean centerVertical;   // android:layout_centerVertical="true"
 
         private final boolean alignParentTop;
         private final boolean alignParentBottom;

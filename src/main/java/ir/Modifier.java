@@ -7,6 +7,7 @@ public sealed interface Modifier
         Modifier.Margin,
         Modifier.Size,
         Modifier.FillMax,
+        Modifier.WrapContent,
         Modifier.Background,
         Modifier.Align,
         Modifier.Weight,
@@ -40,6 +41,12 @@ public sealed interface Modifier
      * fillMaxWidth/fillMaxHeight（语义上更接近 match_parent / match_constraints）
      */
     record FillMax(boolean width, boolean height) implements Modifier {
+    }
+
+    /**
+     * wrapContentWidth/wrapContentHeight
+     */
+    record WrapContent(boolean width, boolean height) implements Modifier {
     }
 
     record Background(SemanticValue color) implements Modifier {
