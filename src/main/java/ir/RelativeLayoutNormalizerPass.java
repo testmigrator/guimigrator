@@ -26,8 +26,8 @@ public final class RelativeLayoutNormalizerPass implements LayoutPass {
             return asColumn(n, "start", hAlign, chain.get());
         }
 
-        // fallback：降级为 STACK（Frame 语义），让你跑起来并通过注释定位问题
-        return asStack(n);
+        // fallback：降级为 STACK（Frame 语义），并尽量保留 alignParent/center 语义
+        return asStackWithAlignment(n, spec);
     }
 
     private Optional<List<UINode>> tryBuildVerticalChain(List<UINode> children, RelativeLayoutSpec spec) {
@@ -114,16 +114,18 @@ public final class RelativeLayoutNormalizerPass implements LayoutPass {
                 .build();
     }
 
-    private UINode asStack(UINode n) {
-        // 你也可以在 props 里打个标记，renderer 输出注释，便于定位
+    private UINode asStackWithAlignment(UINode n, RelativeLayoutSpec spec) {
+        List<UINode> children = wrapAlignedChildren(n.children(), spec);
+
         Map<String, SemanticValue> props = new HashMap<>(n.getProps() == null ? Map.of() : n.getProps());
         props.put("layoutFallback", new SemanticValue.Str("RelativeLayout->Stack"));
+
         return UINode.builder()
                 .kind(UIKind.STACK)
                 .id(n.getId())
                 .props(Map.copyOf(props))
                 .modifiers(n.getModifiers())
-                .slots(Map.of(SlotKey.CONTENT, n.children()))
+                .slots(Map.of(SlotKey.CONTENT, children))
                 .source(n.getSource())
                 .build();
     }
@@ -134,5 +136,64 @@ public final class RelativeLayoutNormalizerPass implements LayoutPass {
             out.put(e.getKey(), e.getValue().stream().map(this::rewrite).toList());
         }
         return out;
+    }
+
+    private List<UINode> wrapAlignedChildren(List<UINode> children, RelativeLayoutSpec spec) {
+        if (children == null || children.isEmpty()) return List.of();
+
+        Map<String, RelativeLayoutSpec.RelativeRules> rules = spec.getRulesByChildId();
+        if (rules == null || rules.isEmpty()) return children;
+
+        List<UINode> out = new ArrayList<>(children.size());
+        for (UINode child : children) {
+            String id = child.getId();
+            if (id == null) {
+                out.add(child);
+                continue;
+            }
+            RelativeLayoutSpec.RelativeRules r = rules.get(id);
+            if (r == null) {
+                out.add(child);
+                continue;
+            }
+
+            String align = mapAlignment(r);
+            if (align == null) {
+                out.add(child);
+                continue;
+            }
+
+            // 用一个填充父容器的 Box 来承接 alignment
+            UINode wrapper = UINode.builder()
+                    .kind(UIKind.STACK)
+                    .prop(SemanticPropKeys.BOX_ALIGNMENT, new SemanticValue.Str(align))
+                    .modifier(new Modifier.FillMax(true, true))
+                    .slot(SlotKey.CONTENT, List.of(child))
+                    .build();
+            out.add(wrapper);
+        }
+        return out;
+    }
+
+    private String mapAlignment(RelativeLayoutSpec.RelativeRules r) {
+        boolean bottom = r.isAlignParentBottom();
+        boolean top = r.isAlignParentTop();
+        boolean center = r.isCenterInParent() || r.isCenterHorizontal();
+        boolean start = r.isAlignParentStart();
+        boolean end = r.isAlignParentEnd();
+
+        if (bottom) {
+            if (end) return "bottomEnd";
+            if (start) return "bottomStart";
+            return center ? "bottomCenter" : "bottomStart";
+        }
+        if (top) {
+            if (end) return "topEnd";
+            if (start) return "topStart";
+            return center ? "topCenter" : "topStart";
+        }
+        if (r.isCenterInParent()) return "center";
+        if (r.isCenterHorizontal()) return "center";
+        return null;
     }
 }

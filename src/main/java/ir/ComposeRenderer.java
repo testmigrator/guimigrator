@@ -12,23 +12,32 @@ public final class ComposeRenderer implements BackendRenderer {
 
         StringBuilder sb = new StringBuilder(2048);
         sb.append("import androidx.compose.foundation.background\n")
-          .append("import androidx.compose.foundation.layout.*\n")
-          .append("import androidx.compose.material3.*\n")
-          .append("import androidx.compose.runtime.*\n")
-          .append("import androidx.compose.ui.Alignment\n")
-          .append("import androidx.compose.ui.Modifier\n")
-          .append("import androidx.compose.ui.graphics.Color\n")
-          .append("import androidx.compose.ui.unit.dp\n\n");
+                .append("import androidx.compose.foundation.layout.*\n")
+                .append("import androidx.compose.material3.*\n")
+                .append("import androidx.compose.runtime.*\n")
+                .append("import androidx.compose.ui.Alignment\n")
+                .append("import androidx.compose.ui.Modifier\n")
+                .append("import androidx.compose.ui.draw.alpha\n")
+                .append("import androidx.compose.ui.graphics.Color\n")
+                .append("import androidx.compose.foundation.Image\n")
+                .append("import androidx.compose.ui.res.painterResource\n")
+                .append("import androidx.compose.ui.layout.ContentScale\n")
+                .append("import androidx.compose.ui.unit.sp\n")
+                .append("import androidx.compose.ui.unit.dp\n\n");
 
         sb.append("@Composable\n")
-          .append("fun ").append(funName).append("() {\n")
-          .append(body).append('\n')
-          .append("}\n");
+                .append("fun ").append(funName).append("() {\n")
+                .append(body).append('\n')
+                .append("}\n");
 
         return new RenderResult(funName + ".kt", sb.toString());
     }
 
     private String renderNode(UINode node, int indent) {
+        String visibility = getStr(node, SemanticPropKeys.VISIBILITY, "");
+        if ("gone".equalsIgnoreCase(visibility)) {
+            return "";
+        }
         return switch (node.getKind()) {
             case TEXT -> renderText(node, indent);
             case IMAGE -> renderImage(node, indent);
@@ -263,7 +272,22 @@ public final class ComposeRenderer implements BackendRenderer {
 
     private String renderBox(UINode node, int indent) {
         String modifierArg = composeModifier(node);
-        String header = "Box(" + (modifierArg.isBlank() ? "" : "modifier = " + modifierArg) + ") {";
+        String alignRaw = asString(node.getProps().get(SemanticPropKeys.BOX_ALIGNMENT));
+        String align = composeBoxAlignment(alignRaw);
+
+        String args = "";
+        boolean hasAny = false;
+        if (!modifierArg.isBlank()) {
+            args += "modifier = " + modifierArg;
+            hasAny = true;
+        }
+        if (!align.isBlank()) {
+            if (hasAny) args += ", ";
+            args += "contentAlignment = " + align;
+            hasAny = true;
+        }
+
+        String header = "Box(" + args + ") {";
         String children = renderChildren(node.children(), indent + 2);
         return indent(indent) + header + "\n"
                 + children + (children.isBlank() ? "" : "\n")
@@ -273,8 +297,32 @@ public final class ComposeRenderer implements BackendRenderer {
 
     private String renderImage(UINode node, int indent) {
         String src = asString(node.getProps().get(SemanticPropKeys.SRC));
-        return indent(indent) + "/* Image src=" + src + " */";
+        String bg  = asString(node.getProps().get(SemanticPropKeys.BACKGROUND));
+        String ref = (src != null && !src.isBlank()) ? src : bg;
+
+        // fallback
+        if (ref == null || ref.isBlank() || !ref.startsWith("@drawable/")) {
+            return indent(indent) + "Box(modifier = " + composeModifier(node) + ") { /* TODO Image */ }";
+        }
+
+        String name = ref.substring("@drawable/".length()); // login_background
+        String modifier = composeModifier(node);
+        if (modifier.isBlank()) modifier = "Modifier";
+
+        // scaleType
+        String scale = asString(node.getProps().get(SemanticPropKeys.SCALE_TYPE));
+        String contentScale = "ContentScale.Fit";
+        if ("centerCrop".equalsIgnoreCase(scale) || "CENTER_CROP".equalsIgnoreCase(scale)) {
+            contentScale = "ContentScale.Crop";
+        }
+
+        return indent(indent) +
+                "Image(painter = painterResource(id = R.drawable." + name + "), " +
+                "contentDescription = null, " +
+                "modifier = " + modifier + ", " +
+                "contentScale = " + contentScale + ")";
     }
+
 
     private String renderButton(UINode node, int indent) {
         List<UINode> labelNodes = node.slot(SlotKey.LABEL);
@@ -356,6 +404,22 @@ public final class ComposeRenderer implements BackendRenderer {
         };
     }
 
+    private String composeBoxAlignment(String s) {
+        if (s == null) return "";
+        return switch (s) {
+            case "topStart" -> "Alignment.TopStart";
+            case "topCenter" -> "Alignment.TopCenter";
+            case "topEnd" -> "Alignment.TopEnd";
+            case "centerStart" -> "Alignment.CenterStart";
+            case "center" -> "Alignment.Center";
+            case "centerEnd" -> "Alignment.CenterEnd";
+            case "bottomStart" -> "Alignment.BottomStart";
+            case "bottomCenter" -> "Alignment.BottomCenter";
+            case "bottomEnd" -> "Alignment.BottomEnd";
+            default -> "";
+        };
+    }
+
     // --- modifier mapping ---
     private String renderComposeModifierArg(UINode node) {
         String m = composeModifier(node);
@@ -394,7 +458,9 @@ public final class ComposeRenderer implements BackendRenderer {
                 case Modifier.Padding p -> composePadding(p);
                 case Modifier.Margin mg -> composeMarginAsPadding(mg); // 近似
                 case Modifier.Background b -> ".background(" + composeBackground(b.color()) + ")";
+//                case Modifier.Alpha a -> ".alpha(" + a.value() + "f)";
                 case Modifier.Align a -> ""; // 先不做（scope 相关）
+                default -> throw new IllegalStateException("Unexpected value: " + m);
             };
 
             if (!seg.isBlank()) sb.append(seg);

@@ -28,6 +28,10 @@ public final class SwiftUIRenderer implements BackendRenderer {
     }
 
     private String renderNode(UINode node, int indent) {
+        String visibility = getStr(node, SemanticPropKeys.VISIBILITY, "");
+        if ("gone".equalsIgnoreCase(visibility)) {
+            return "";
+        }
         return switch (node.getKind()) {
             case TEXT -> renderText(node, indent);
             case IMAGE -> renderImage(node, indent);
@@ -226,7 +230,13 @@ public final class SwiftUIRenderer implements BackendRenderer {
 
     private String renderZStack(UINode node, int indent) {
         String body = renderChildren(node.children(), indent + 2);
-        String expr = indent(indent) + "ZStack {\n"
+        String alignRaw = getStr(node, SemanticPropKeys.BOX_ALIGNMENT, "");
+        String align = swiftStackAlignment(alignRaw);
+        String header = align.isBlank()
+                ? "ZStack"
+                : "ZStack(alignment: " + align + ")";
+
+        String expr = indent(indent) + header + " {\n"
                 + body + (body.isBlank() ? "" : "\n")
                 + indent(indent) + "}";
         return applyModifiersMultiline(expr, node, indent);
@@ -340,6 +350,7 @@ public final class SwiftUIRenderer implements BackendRenderer {
                     yield "";
                 }
                 case Modifier.Background b -> ".background(Color.clear)"; // 最小闭环：占位
+                case Modifier.Alpha a -> ".opacity(" + a.value() + ")";
                 case Modifier.Align a -> "";
                 default -> "";
             };
@@ -366,6 +377,8 @@ public final class SwiftUIRenderer implements BackendRenderer {
             case Modifier.Margin mg -> swiftPaddingLikeMargin(mg); // 最小闭环：同 padding
             case Modifier.Background b -> ".background(" + swiftBackground(b.color()) + ")";
             case Modifier.Align a -> "";
+            case Modifier.Alpha a -> ".opacity(" + a.value() + ")";
+            default -> throw new IllegalStateException("Unexpected value: " + m);
         };
     }
 
@@ -405,6 +418,22 @@ public final class SwiftUIRenderer implements BackendRenderer {
         return "Color.clear";
     }
 
+    private String swiftStackAlignment(String s) {
+        if (s == null || s.isBlank()) return "";
+        return switch (s) {
+            case "topStart" -> ".topLeading";
+            case "topCenter" -> ".top";
+            case "topEnd" -> ".topTrailing";
+            case "centerStart" -> ".leading";
+            case "center" -> ".center";
+            case "centerEnd" -> ".trailing";
+            case "bottomStart" -> ".bottomLeading";
+            case "bottomCenter" -> ".bottom";
+            case "bottomEnd" -> ".bottomTrailing";
+            default -> "";
+        };
+    }
+
 
     private String applyModifiersMultiline(String expr, UINode node, int indent) {
         if (node.getModifiers() == null || node.getModifiers().isEmpty()) return expr;
@@ -420,6 +449,7 @@ public final class SwiftUIRenderer implements BackendRenderer {
                 }
                 case Modifier.Background b -> ".background(Color.clear)";
                 case Modifier.Align a -> "";
+                case Modifier.Alpha a -> ".opacity(" + a.value() + ")";
                 default -> "";
             };
             if (!suffix.isBlank()) out += "\n" + indent(indent) + suffix;

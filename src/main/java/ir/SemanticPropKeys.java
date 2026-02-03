@@ -1,6 +1,10 @@
 package ir;
 
 public final class SemanticPropKeys {
+
+
+
+
     private SemanticPropKeys() {}
 
     public static final String TEXT = "text";
@@ -13,5 +17,15 @@ public final class SemanticPropKeys {
     // layout hints for normalized layouts
     public static final String V_ARRANGEMENT = "vArrangement";  // spaceBetween / spaceEvenly / center
     public static final String H_ALIGNMENT  = "hAlignment";     // center / start / end
+
+
+    public static final String SCALE_TYPE = "scaleType";
+    public static final String BACKGROUND = "background";
+
+    public static final String VISIBILITY = "visibility";
+    public static final String BOX_ALIGNMENT = "boxAlignment";
+
+    public static final String ALIGN_PARENT_BOTTOM = "layout_alignParentBottom";
+
 
 }

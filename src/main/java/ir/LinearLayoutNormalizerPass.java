@@ -8,7 +8,6 @@ public final class LinearLayoutNormalizerPass implements LayoutPass {
 
     @Override
     public UINode apply(UINode root) {
-        System.out.println("rootrootroot: "+root);
         return rewrite(root);
     }
 
@@ -19,12 +18,10 @@ public final class LinearLayoutNormalizerPass implements LayoutPass {
                 .build();
 
         // 2) 只处理 Linear 容器
-        System.out.println("n.getKind()n.getKind()n.getKind(): "+n.getKind());
         if (n.getKind() != UIKind.LINEAR_CONTAINER) return n;
         if (!(n.getLayoutSpec() instanceof LinearLayoutSpec spec)) return n;
 
         // 3) orientation lowering
-        System.out.println("node: "+node);
         UIKind lowered = (spec.getOrientation() == LinearLayoutSpec.Orientation.HORIZONTAL)
                 ? UIKind.ROW
                 : UIKind.COLUMN;

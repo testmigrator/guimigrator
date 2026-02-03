@@ -219,11 +219,23 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
             }
 
             if (!attrName.equals("android:id") && attrValue.startsWith("@")) {
+                // 对 ImageView 的 drawable 引用保持原样（避免 selector 解析成颜色导致图片丢失）
+                if (isImageDrawableAttr(viewElement, attrName, attrValue)) {
+                    continue;
+                }
                 String newValue = resolveReference(attrValue, context);
                 entry.setValue(newValue);
             }
         }
         viewElement.setAttributes(attributes);
+    }
+
+    private boolean isImageDrawableAttr(ViewElement viewElement, String attrName, String attrValue) {
+        if (!attrValue.startsWith("@drawable/")) return false;
+        if (!("android:src".equals(attrName) || "android:background".equals(attrName))) return false;
+        String type = viewElement.getType();
+        if (type == null) return false;
+        return type.equals("ImageView") || type.endsWith("AppCompatImageView");
     }
 
     private String resolveReference(String attrValue, UIResourceContext context) {

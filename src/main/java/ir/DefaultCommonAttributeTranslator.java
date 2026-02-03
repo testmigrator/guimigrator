@@ -18,9 +18,19 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         List<Modifier> mods = new ArrayList<>();
         Map<String, SemanticValue> props = new HashMap<>();
 
-        // visibility -> prop（可选，renderer 可先不支持）
+        // visibility -> prop + alpha (invisible)
         String visibility = v(a, "android:visibility");
-        if (visibility != null) props.put("visibility", new SemanticValue.Str(visibility));
+        if (visibility != null) {
+            props.put(SemanticPropKeys.VISIBILITY, new SemanticValue.Str(visibility));
+            if ("invisible".equalsIgnoreCase(visibility)) {
+//                mods.add(new Modifier.Alpha(0.0));
+            }
+        }
+
+
+        String apb = v(a, "android:layout_alignParentBottom");
+        if ("true".equalsIgnoreCase(apb)) props.put(SemanticPropKeys.ALIGN_PARENT_BOTTOM, new SemanticValue.Bool(true));
+
 
         // background
         String bg = v(a, "android:background");

@@ -9,7 +9,8 @@ public sealed interface Modifier
         Modifier.FillMax,
         Modifier.Background,
         Modifier.Align,
-        Modifier.Weight {
+        Modifier.Weight,
+        Modifier.Alpha {
 
 
     record Weight(float value) implements Modifier {
@@ -46,5 +47,11 @@ public sealed interface Modifier
 
     record Align(Alignment alignment) implements Modifier {
         public enum Alignment {START, CENTER, END, TOP, BOTTOM}
+    }
+
+    /**
+     * Alpha/opacity for visibility handling (0.0 = invisible)
+     */
+    record Alpha(double value) implements Modifier {
     }
 }

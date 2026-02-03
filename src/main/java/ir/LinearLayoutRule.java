@@ -14,22 +14,37 @@ public final class LinearLayoutRule implements NodeRule {
     @Override
     public NodeSpec apply(NodeContext ctx, ViewElement e) {
         String ori = e.getAttributes() == null ? null : e.getAttributes().get("android:orientation");
-        System.out.println("oriorioriori: " +ori);
         LinearLayoutSpec.Orientation orientation =
                 "horizontal".equalsIgnoreCase(ori) ? LinearLayoutSpec.Orientation.HORIZONTAL : LinearLayoutSpec.Orientation.VERTICAL;
 
-        return NodeSpec.builder()
+        String gravity = e.getAttributes() == null ? null : e.getAttributes().get("android:gravity");
+
+        NodeSpec.NodeSpecBuilder b = NodeSpec.builder()
                 .kind(UIKind.LINEAR_CONTAINER)
-                // ✅ 推荐：LinearLayout 先用一个独立 kind，或者直接在 spec 决定
-                // 为了最小改动：我们用 kind=COLUMN/ROW 也可以，但那会丢失“原始布局语义”
-                // 所以更合理：新增 UIKind.LINEAR_CONTAINER（建议）
                 .layoutSpec(LinearLayoutSpec.builder().orientation(orientation).build())
                 .slotPolicy(SlotPolicy.CONTENT_ONLY)
                 .sourceSpan(UINode.SourceSpan.builder()
                         .xmlFile(ctx.getXmlFile())
                         .viewType(e.getType())
                         .viewUid(e.getUid())
-                        .build())
-                .build();
+                        .build());
+
+        if (gravity != null) {
+            String g = gravity.toLowerCase();
+            // horizontal alignment
+            if (g.contains("center") || g.contains("center_horizontal")) {
+                b.prop(SemanticPropKeys.H_ALIGNMENT, new SemanticValue.Str("center"));
+            } else if (g.contains("end") || g.contains("right")) {
+                b.prop(SemanticPropKeys.H_ALIGNMENT, new SemanticValue.Str("end"));
+            } else if (g.contains("start") || g.contains("left")) {
+                b.prop(SemanticPropKeys.H_ALIGNMENT, new SemanticValue.Str("start"));
+            }
+            // vertical arrangement for Column (wrap_content generally makes this no-op)
+            if (g.contains("center_vertical")) {
+                b.prop(SemanticPropKeys.V_ARRANGEMENT, new SemanticValue.Str("center"));
+            }
+        }
+
+        return b.build();
     }
 }
