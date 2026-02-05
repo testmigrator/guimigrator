@@ -71,7 +71,7 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         walk(root, v -> fillAndUpdateIncludeAttrValue(v, context));
     }
 
-    public void testNewUIPipeline(XmlLayout xmlLayout){
+    private BackendRenderer.RenderResult renderWithNewPipeline(XmlLayout xmlLayout, String targetPlatform) {
         NodeRuleRegistry registry = new NodeRuleRegistry(new FallbackRule())
                 .register(new DrawerLayoutRule())
                 .register(new RelativeLayoutRule())
@@ -86,6 +86,7 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
 
                 .register(new RecyclerViewRule())
                 .register(new SpinnerRule())
+                .register(new ViewRule())
 
                 .register(new RadioGroupRule())
                 .register(new RadioButtonRule())
@@ -115,31 +116,32 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
                 new FrameLayoutNormalizerPass(),
                 new ConstraintNormalizerPass(),
                 new RelativeLayoutNormalizerPass(),
-                new ScrollNormalizerPass()
+                new ScrollNormalizerPass(),
+                new RowSafetyNormalizerPass()
         ));
         UINode normalized = layoutNormalizer.normalize(uiTree);
 
-        BackendRenderer compose = new ComposeRenderer();
-        BackendRenderer swiftui = new SwiftUIRenderer();
-
         String baseName = TargetUICodeGenerator.getXmlFileNameWithoutExtension(xmlLayout.getXmlFilepath());
-
-        BackendRenderer.RenderResult r1 = compose.render(normalized, new BackendRenderer.RenderConfig(baseName));
-        System.out.println(r1.filename());
-        System.out.println(r1.code());
-        System.out.println();
-        System.out.println();
-        System.out.println();
-
-//      TODO swiftui
-//        BackendRenderer.RenderResult r2 = swiftui.render(normalized, new BackendRenderer.RenderConfig(baseName));
-//        System.out.println(r2.code());
+        BackendRenderer renderer = "SWIFTUI".equalsIgnoreCase(targetPlatform)
+                ? new SwiftUIRenderer()
+                : new ComposeRenderer();
+        return renderer.render(normalized, new BackendRenderer.RenderConfig(baseName));
     }
 
     private TargetUICode generateTargetUICode(XmlLayout xmlLayout, UIResourceContext context, TaskParam taskParam) {
-        // todo for test new ui
-        testNewUIPipeline(xmlLayout);
-        return null;
+        BackendRenderer.RenderResult result = renderWithNewPipeline(xmlLayout, taskParam.getTargetPlatform());
+        String filename = stripExt(result.filename());
+        String code = result.code();
+
+        if ("COMPOSE".equalsIgnoreCase(taskParam.getTargetPlatform())) {
+            code = appendComposePreview(code, filename);
+        }
+
+        return TargetUICode.builder()
+                .filename(filename)
+                .xmlFilepath(xmlLayout.getXmlFilepath())
+                .translateCode(code)
+                .build();
         /**
         ViewElement viewElement = xmlLayout.getViewElement();
         String targetPlatform = taskParam.getTargetPlatform();
@@ -171,6 +173,39 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         }
          **/
 
+    }
+
+    private static String appendComposePreview(String code, String filename) {
+        String fun = safeIdentifier(filename);
+        String previewFun = fun + "_preview";
+        String withImports = code;
+        if (!withImports.contains("import androidx.compose.ui.tooling.preview.Preview")) {
+            withImports = "import androidx.compose.ui.tooling.preview.Preview\n" + withImports;
+        }
+
+        StringBuilder sb = new StringBuilder(withImports.length() + 180);
+        sb.append(withImports).append("\n\n")
+                .append("@Preview(showBackground = true)\n")
+                .append("@Composable\n")
+                .append("fun ").append(previewFun).append("() {\n")
+                .append("    MyApplicationTheme {\n")
+                .append("        ").append(fun).append("()\n")
+                .append("    }\n")
+                .append("}\n");
+        return sb.toString();
+    }
+
+    private static String stripExt(String filename) {
+        int dot = filename.lastIndexOf('.');
+        if (dot <= 0) return filename;
+        return filename.substring(0, dot);
+    }
+
+    private static String safeIdentifier(String s) {
+        String t = s.replaceAll("[^A-Za-z0-9_]", "_");
+        if (t.isBlank()) t = "GeneratedUI";
+        if (Character.isDigit(t.charAt(0))) t = "_" + t;
+        return t;
     }
 
     /** TODO backup **/

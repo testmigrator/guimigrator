@@ -18,8 +18,12 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         List<Modifier> mods = new ArrayList<>();
         Map<String, SemanticValue> props = new HashMap<>();
 
-        // visibility -> prop + alpha (invisible)
+        // visibility -> prop (tools:visibility should override for preview-based evaluation)
         String visibility = v(a, "android:visibility");
+        String toolsVisibility = v(a, "tools:visibility");
+        if (toolsVisibility != null && !toolsVisibility.isBlank()) {
+            visibility = toolsVisibility;
+        }
         if (visibility != null) {
             props.put(SemanticPropKeys.VISIBILITY, new SemanticValue.Str(visibility));
             if ("invisible".equalsIgnoreCase(visibility)) {
@@ -120,8 +124,8 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
     }
 
     private static void applySize(String w, String h, List<Modifier> mods) {
-        boolean fillW = isMatchParent(w) || isMatchConstraints(w);
-        boolean fillH = isMatchParent(h) || isMatchConstraints(h);
+        boolean fillW = isMatchParent(w) || isMatchConstraints(w) || isZeroDimension(w);
+        boolean fillH = isMatchParent(h) || isMatchConstraints(h) || isZeroDimension(h);
 
         if (fillW || fillH) mods.add(new Modifier.FillMax(fillW, fillH));
 
@@ -131,15 +135,30 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
 
         Double dpW = parseDpNumber(w);
         Double dpH = parseDpNumber(h);
+        // 0dp/0/0.0 在 Android 布局参数里通常是 match-constraints/weight 配合，不应再输出 width(0dp)/height(0dp)
+        if (dpW != null && Math.abs(dpW) < 1e-9) dpW = null;
+        if (dpH != null && Math.abs(dpH) < 1e-9) dpH = null;
         if (dpW != null || dpH != null) mods.add(new Modifier.Size(dpW, dpH));
     }
 
     private static boolean isMatchParent(String v) {
-        return v != null && v.equalsIgnoreCase("match_parent");
+        return v != null && (v.equalsIgnoreCase("match_parent") || v.equalsIgnoreCase("fill_parent"));
     }
 
     private static boolean isMatchConstraints(String v) {
         return v != null && v.equalsIgnoreCase("0dp");
+    }
+
+    private static boolean isZeroDimension(String v) {
+        if (v == null) return false;
+        String t = v.trim().toLowerCase(Locale.ROOT);
+        if (t.endsWith("dp")) t = t.substring(0, t.length() - 2).trim();
+        if (t.isBlank()) return false;
+        try {
+            return Math.abs(Double.parseDouble(t)) < 1e-9;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private static boolean isWrapContent(String v) {

@@ -1,0 +1,24 @@
+import SwiftUI
+struct opml_list_fragment: View {
+    
+    var body: some View {
+        VStack
+        {//update //update
+            Text("")
+                .padding(5)
+            List
+            {
+                ForEach(1..<10)
+                {
+                    index in
+                    Text("Item \(index)")
+                }
+            }
+            .listStyle(PlainListStyle())
+        }}}
+
+struct opml_list_fragment_Previews: PreviewProvider {
+    static var previews: some View {
+        opml_list_fragment()
+    }
+}

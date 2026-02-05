@@ -3,6 +3,7 @@ package ir;
 import entity.resource.ViewElement;
 
 import java.util.Map;
+import java.util.HashMap;
 
 public final class SpinnerRule implements NodeRule {
 
@@ -15,10 +16,15 @@ public final class SpinnerRule implements NodeRule {
 
     @Override
     public NodeSpec apply(NodeContext ctx, ViewElement e) {
-        // entries/dataSource 在 XML 一般不是直接给，先占位
+        Map<String, SemanticValue> props = new HashMap<>();
+        String prompt = attr(e, "android:prompt");
+        String mode = attr(e, "android:spinnerMode");
+        if (prompt != null && !prompt.isBlank()) props.put("prompt", new SemanticValue.Str(prompt));
+        if (mode != null && !mode.isBlank()) props.put("spinnerMode", new SemanticValue.Str(mode));
+
         return NodeSpec.builder()
                 .kind(UIKind.SPINNER)
-                .props(Map.of("todo", new SemanticValue.Str("Spinner needs data source")))
+                .props(props)
                 .slotPolicy(SlotPolicy.CONTENT_ONLY)
                 .sourceSpan(UINode.SourceSpan.builder()
                         .xmlFile(ctx.getXmlFile())
@@ -26,5 +32,9 @@ public final class SpinnerRule implements NodeRule {
                         .viewUid(e.getUid())
                         .build())
                 .build();
+    }
+
+    private static String attr(ViewElement e, String key) {
+        return e.getAttributes() == null ? null : e.getAttributes().get(key);
     }
 }

@@ -34,7 +34,10 @@ public final class SlotBinder {
             case BUTTON_LABEL -> {
                 Map<String, SemanticValue> lp = new HashMap<>();
 
-                String text = attr(src, "android:text");
+                String text = firstNonBlank(
+                        attr(src, "android:text"),
+                        attr(src, "tools:text")
+                );
                 if (text != null && !text.isBlank()) {
                     lp.put(SemanticPropKeys.TEXT, new SemanticValue.Str(text));
                 }
@@ -73,5 +76,11 @@ public final class SlotBinder {
     private static String attr(ViewElement e, String key) {
         if (e.getAttributes() == null) return null;
         return e.getAttributes().get(key);
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        if (b != null && !b.isBlank()) return b;
+        return null;
     }
 }

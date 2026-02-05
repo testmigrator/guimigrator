@@ -52,7 +52,7 @@ public final class SwiftUIRenderer implements BackendRenderer {
             // normalize 后不应该出现，但必须兜底
             case RELATIVE_CONTAINER, LINEAR_CONTAINER, FRAME_CONTAINER, CONSTRAINT_CONTAINER -> renderFallbackContainer(node, indent);
 
-            case SPACER -> indent(indent) + "Spacer()";
+            case SPACER -> renderSpacer(node, indent);
             case PROGRESS -> renderProgress(node, indent);
             case ICON_BUTTON -> renderIconButton(node, indent);
             case AUTO_COMPLETE -> renderAutoComplete(node, indent);
@@ -227,6 +227,11 @@ public final class SwiftUIRenderer implements BackendRenderer {
         return applyModifiersMultiline(expr, node, indent);
     }
 
+    private String renderSpacer(UINode node, int indent) {
+        String expr = indent(indent) + "Spacer()";
+        return applyModifiersMultiline(expr, node, indent);
+    }
+
 
     private String renderZStack(UINode node, int indent) {
         String body = renderChildren(node.children(), indent + 2);
@@ -373,6 +378,7 @@ public final class SwiftUIRenderer implements BackendRenderer {
                 if (sz.height() != null) yield ".frame(height: " + sz.height() + ")";
                 yield "";
             }
+            case Modifier.WrapContent w -> "";
             case Modifier.Padding p -> swiftPadding(p);
             case Modifier.Margin mg -> swiftPaddingLikeMargin(mg); // 最小闭环：同 padding
             case Modifier.Background b -> ".background(" + swiftBackground(b.color()) + ")";

@@ -1,0 +1,80 @@
+import SwiftUI
+struct activity_settings: View {
+
+var body: some View {
+ZStack
+{
+HStack
+{
+Rectangle()
+.fill(Color(red:0.0,green:0.0,blue:0.0,opacity:1.0))
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,676)
+}
+.frame(minWidth:0,maxWidth:.infinity)
+ScrollView
+{
+VStack
+{
+HStack
+{
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+}
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.top,48)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+HStack
+{
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+}
+.frame(minWidth:0,maxWidth:.infinity)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+HStack
+{
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+}
+.frame(minWidth:0,maxWidth:.infinity)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,16)
+Rectangle()
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.bottom,24)
+.padding(10)
+}
+.frame(minWidth:0,maxWidth:.infinity)
+.padding(.top,16)
+.padding(.leading,16)
+.padding(.trailing,16)
+}
+.frame(minWidth:0,maxWidth:.infinity,minHeight:0,maxHeight:.infinity)
+}
+.frame(minWidth:0,maxWidth:.infinity,minHeight:0,maxHeight:.infinity)}}
+
+struct activity_settings_Previews: PreviewProvider {
+    static var previews: some View {
+        activity_settings()
+    }
+}

@@ -21,6 +21,7 @@ public final class ComposeRenderer implements BackendRenderer {
                 .append("import androidx.compose.foundation.Image\n")
                 .append("import androidx.compose.ui.res.painterResource\n")
                 .append("import androidx.compose.ui.layout.ContentScale\n")
+                .append("import androidx.compose.ui.text.style.TextAlign\n")
                 .append("import androidx.compose.ui.unit.sp\n")
                 .append("import androidx.compose.ui.unit.dp\n\n");
 
@@ -58,7 +59,7 @@ public final class ComposeRenderer implements BackendRenderer {
             case RELATIVE_CONTAINER, LINEAR_CONTAINER, FRAME_CONTAINER -> renderFallbackContainer(node, indent);
 
             case CONSTRAINT_CONTAINER -> renderFallbackContainer(node, indent); // not normalized
-            case SPACER -> indent(indent) + "Spacer(modifier = Modifier.weight(1f))";
+            case SPACER -> renderSpacer(node, indent);
             case PROGRESS -> renderProgress(node, indent);
             case ICON_BUTTON -> renderIconButton(node, indent);
             case AUTO_COMPLETE -> renderAutoComplete(node, indent);
@@ -90,7 +91,7 @@ public final class ComposeRenderer implements BackendRenderer {
 
         String header = "Column(" + (modifier.isBlank() ? "" : "modifier = " + modifier) + ") {";
         String label = hint.isBlank()
-                ? indent(indent + 2) + "/* TODO: TextInputLayout label */"
+                ? indent(indent + 2) + ""
                 : indent(indent + 2) + "Text(" + quote(hint) + ")";
 
         String body = childBody.isBlank() ? indent(indent + 2) + "/* TODO: missing TextField */" : childBody;
@@ -103,9 +104,38 @@ public final class ComposeRenderer implements BackendRenderer {
 
     private String renderSpinner(UINode node, int indent) {
         String modifier = composeModifier(node);
-        String line = "Text(\"TODO Spinner\")";
-        if (!modifier.isBlank()) line = line.replace(")", ", modifier = " + modifier + ")");
-        return indent(indent) + line;
+        String suffix = spinnerSuffix(node);
+        String optionsVar = "spinnerOptions_" + suffix;
+        String expandedVar = "spinnerExpanded_" + suffix;
+        String selectedVar = "spinnerSelected_" + suffix;
+
+        String prompt = getStr(node, "prompt", "");
+        if (prompt == null || prompt.isBlank()) prompt = "Select";
+        String mod = modifier.isBlank() ? "Modifier" : modifier;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent)).append("val ").append(optionsVar).append(" = listOf(")
+                .append(quote(prompt)).append(", \"Option 1\", \"Option 2\", \"Option 3\")\n");
+        sb.append(indent(indent)).append("var ").append(expandedVar).append(" by remember { mutableStateOf(false) }\n");
+        sb.append(indent(indent)).append("var ").append(selectedVar).append(" by remember { mutableStateOf(").append(optionsVar).append(".first()) }\n");
+        sb.append(indent(indent)).append("Box(modifier = ").append(mod).append(") {\n");
+        sb.append(indent(indent + 2)).append("OutlinedButton(onClick = { ").append(expandedVar).append(" = true }, modifier = Modifier.fillMaxWidth()) {\n");
+        sb.append(indent(indent + 4)).append("Text(text = ").append(selectedVar).append(")\n");
+        sb.append(indent(indent + 2)).append("}\n");
+        sb.append(indent(indent + 2)).append("DropdownMenu(expanded = ").append(expandedVar)
+                .append(", onDismissRequest = { ").append(expandedVar).append(" = false }) {\n");
+        sb.append(indent(indent + 4)).append(optionsVar).append(".forEach { option ->\n");
+        sb.append(indent(indent + 6)).append("DropdownMenuItem(\n");
+        sb.append(indent(indent + 8)).append("text = { Text(option) },\n");
+        sb.append(indent(indent + 8)).append("onClick = {\n");
+        sb.append(indent(indent + 10)).append(selectedVar).append(" = option\n");
+        sb.append(indent(indent + 10)).append(expandedVar).append(" = false\n");
+        sb.append(indent(indent + 8)).append("}\n");
+        sb.append(indent(indent + 6)).append(")\n");
+        sb.append(indent(indent + 4)).append("}\n");
+        sb.append(indent(indent + 2)).append("}\n");
+        sb.append(indent(indent)).append("}");
+        return sb.toString();
     }
 
     private String renderList(UINode node, int indent) {
@@ -122,6 +152,7 @@ public final class ComposeRenderer implements BackendRenderer {
 
         String colorRaw = getStr(node, SemanticPropKeys.TEXT_COLOR, null);
         String sizeRaw  = getStr(node, SemanticPropKeys.TEXT_SIZE, null);
+        String textAlignRaw = getStr(node, SemanticPropKeys.TEXT_ALIGN, null);
 
         String dStart = getStr(node, SemanticPropKeys.DRAWABLE_START, "").trim();
         String dEnd = getStr(node, SemanticPropKeys.DRAWABLE_END, "").trim();
@@ -131,6 +162,10 @@ public final class ComposeRenderer implements BackendRenderer {
         if (!modifier.isBlank()) args += ", modifier = " + modifier;
         if (colorRaw != null) args += ", color = " + composeColor(colorRaw);
         if (sizeRaw != null)  args += ", fontSize = " + composeSp(sizeRaw);
+        if (textAlignRaw != null) {
+            String ta = composeTextAlign(textAlignRaw);
+            if (!ta.isBlank()) args += ", textAlign = " + ta;
+        }
 
         boolean hasDrawable = !dStart.isBlank() || !dEnd.isBlank();
         if (!hasDrawable) {
@@ -294,6 +329,26 @@ public final class ComposeRenderer implements BackendRenderer {
                 + indent(indent) + "}";
     }
 
+    private String renderSpacer(UINode node, int indent) {
+        String modifier = composeSpacerModifier(node);
+        if (modifier.isBlank()) {
+            return indent(indent) + "Spacer(modifier = Modifier.weight(1f))";
+        }
+        return indent(indent) + "Spacer(modifier = " + modifier + ")";
+    }
+
+    private String composeSpacerModifier(UINode node) {
+        if (node.getModifiers() == null || node.getModifiers().isEmpty()) return "";
+
+        // XML <View> 用作间隔时，FillMax 常会把行高/列宽撑坏；Spacer 只保留显式 size/padding/margin。
+        UINode trimmed = node.toBuilder()
+                .modifiers(node.getModifiers().stream()
+                        .filter(m -> !(m instanceof Modifier.FillMax))
+                        .toList())
+                .build();
+        return composeModifier(trimmed);
+    }
+
 
     private String renderBox(UINode node, int indent) {
         String modifierArg = composeModifier(node);
@@ -325,12 +380,11 @@ public final class ComposeRenderer implements BackendRenderer {
         String bg  = asString(node.getProps().get(SemanticPropKeys.BACKGROUND));
         String ref = (src != null && !src.isBlank()) ? src : bg;
 
-        // fallback
-        if (ref == null || ref.isBlank() || !ref.startsWith("@drawable/")) {
+        String painterExpr = toPainterExpr(ref);
+        if (painterExpr == null) {
             return indent(indent) + "Box(modifier = " + composeModifier(node) + ") { /* TODO Image */ }";
         }
 
-        String name = ref.substring("@drawable/".length()); // login_background
         String modifier = composeModifier(node);
         if (modifier.isBlank()) modifier = "Modifier";
 
@@ -342,10 +396,21 @@ public final class ComposeRenderer implements BackendRenderer {
         }
 
         return indent(indent) +
-                "Image(painter = painterResource(id = R.drawable." + name + "), " +
+                "Image(painter = painterResource(id = " + painterExpr + "), " +
                 "contentDescription = null, " +
                 "modifier = " + modifier + ", " +
                 "contentScale = " + contentScale + ")";
+    }
+
+    private String toPainterExpr(String ref) {
+        if (ref == null) return null;
+        String raw = ref.trim();
+        if (raw.isBlank()) return null;
+        if (raw.startsWith("@drawable/")) return "R.drawable." + raw.substring("@drawable/".length());
+        if (raw.startsWith("@mipmap/")) return "R.mipmap." + raw.substring("@mipmap/".length());
+        if (raw.startsWith("@android:drawable/")) return "android.R.drawable." + raw.substring("@android:drawable/".length());
+        if (raw.startsWith("@android:mipmap/")) return "android.R.mipmap." + raw.substring("@android:mipmap/".length());
+        return null;
     }
 
 
@@ -427,7 +492,21 @@ public final class ComposeRenderer implements BackendRenderer {
 
     private String renderRow(UINode node, int indent) {
         String modifierArg = composeModifier(node);
-        String header = "Row(" + (modifierArg.isBlank() ? "" : "modifier = " + modifierArg) + ") {";
+        String hAl = asString(node.getProps().get(SemanticPropKeys.H_ALIGNMENT));
+        String vArr = asString(node.getProps().get(SemanticPropKeys.V_ARRANGEMENT));
+        boolean hasWeightedChild = node.children().stream()
+                .flatMap(ch -> ch.getModifiers().stream())
+                .anyMatch(m -> m instanceof Modifier.Weight);
+
+        StringBuilder args = new StringBuilder();
+        boolean hasAny = false;
+        if (!modifierArg.isBlank()) { args.append("modifier = ").append(modifierArg); hasAny = true; }
+        String ha = hasWeightedChild ? "" : composeRowArrangement(hAl);
+        if (!ha.isBlank()) { if (hasAny) args.append(", "); args.append("horizontalArrangement = ").append(ha); hasAny = true; }
+        String va = composeRowVerticalAlignment(vArr);
+        if (!va.isBlank()) { if (hasAny) args.append(", "); args.append("verticalAlignment = ").append(va); hasAny = true; }
+
+        String header = "Row(" + args + ") {";
         String children = renderChildren(node.children(), indent + 2);
 
         return indent(indent) + header + "\n"
@@ -448,6 +527,8 @@ public final class ComposeRenderer implements BackendRenderer {
             case "spaceBetween" -> "Arrangement.SpaceBetween";
             case "spaceEvenly" -> "Arrangement.SpaceEvenly";
             case "center" -> "Arrangement.Center";
+            case "start" -> "Arrangement.Top";
+            case "end" -> "Arrangement.Bottom";
             default -> "";
         };
     }
@@ -458,6 +539,36 @@ public final class ComposeRenderer implements BackendRenderer {
             case "center" -> "Alignment.CenterHorizontally";
             case "end" -> "Alignment.End";
             case "start" -> "Alignment.Start";
+            default -> "";
+        };
+    }
+
+    private String composeRowArrangement(String s) {
+        if (s == null) return "";
+        return switch (s) {
+            case "center" -> "Arrangement.Center";
+            case "end" -> "Arrangement.End";
+            case "start" -> "Arrangement.Start";
+            default -> "";
+        };
+    }
+
+    private String composeRowVerticalAlignment(String s) {
+        if (s == null) return "";
+        return switch (s) {
+            case "center" -> "Alignment.CenterVertically";
+            case "start" -> "Alignment.Top";
+            case "end" -> "Alignment.Bottom";
+            default -> "";
+        };
+    }
+
+    private String composeTextAlign(String s) {
+        if (s == null) return "";
+        return switch (s) {
+            case "center" -> "TextAlign.Center";
+            case "end" -> "TextAlign.End";
+            case "start" -> "TextAlign.Start";
             default -> "";
         };
     }
@@ -612,6 +723,13 @@ public final class ComposeRenderer implements BackendRenderer {
         if (v instanceof SemanticValue.Str s) return s.value();
         if (v instanceof SemanticValue.Expr e) return e.code();
         return v.toString();
+    }
+
+    private String spinnerSuffix(UINode node) {
+        String raw = node.getId();
+        if ((raw == null || raw.isBlank()) && node.getSource() != null) raw = node.getSource().getViewUid();
+        if (raw == null || raw.isBlank()) raw = "node_" + Math.abs(node.hashCode());
+        return raw.replaceAll("[^A-Za-z0-9_]", "_");
     }
 
     private String composeDrawableImage(String ref) {
