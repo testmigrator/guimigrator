@@ -18,6 +18,12 @@ public final class RelativeLayoutSpec implements LayoutSpec {
         // 常见规则（按需加）
         private final String belowId;   // android:layout_below="@id/xxx"
         private final String aboveId;   // android:layout_above="@id/xxx"
+        private final String alignTopId;    // android:layout_alignTop="@id/xxx"
+        private final String alignBottomId; // android:layout_alignBottom="@id/xxx"
+        private final String alignStartId;  // android:layout_alignStart/Left="@id/xxx"
+        private final String alignEndId;    // android:layout_alignEnd/Right="@id/xxx"
+        private final String toStartOfId;   // android:layout_toStartOf/LeftOf="@id/xxx"
+        private final String toEndOfId;     // android:layout_toEndOf/RightOf="@id/xxx"
 
         private final boolean centerHorizontal; // android:layout_centerHorizontal="true"
         private final boolean centerInParent;   // android:layout_centerInParent="true"

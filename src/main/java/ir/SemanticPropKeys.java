@@ -25,6 +25,8 @@ public final class SemanticPropKeys {
 
     public static final String VISIBILITY = "visibility";
     public static final String BOX_ALIGNMENT = "boxAlignment";
+    public static final String CHILD_H_ALIGNMENT = "childHAlignment"; // start / center / end
+    public static final String CHILD_V_ALIGNMENT = "childVAlignment"; // start / center / end
     public static final String DRAWABLE_START = "drawableStart";
     public static final String DRAWABLE_END = "drawableEnd";
     public static final String DRAWABLE_PADDING = "drawablePadding";

@@ -24,8 +24,10 @@ public final class TextRule implements NodeRule {
         );
         if (text != null) props.put(SemanticPropKeys.TEXT, new SemanticValue.Str(text));
 
-        String gravity = attr(e, "android:gravity");
-        String textAlign = toTextAlign(gravity);
+        String textAlign = firstNonBlank(
+                toTextAlignFromTextAlignment(attr(e, "android:textAlignment")),
+                toTextAlignFromGravity(attr(e, "android:gravity"))
+        );
         if (textAlign != null) props.put(SemanticPropKeys.TEXT_ALIGN, new SemanticValue.Str(textAlign));
 
         return NodeSpec.builder()
@@ -51,12 +53,21 @@ public final class TextRule implements NodeRule {
         return null;
     }
 
-    private static String toTextAlign(String gravity) {
+    private static String toTextAlignFromGravity(String gravity) {
         if (gravity == null) return null;
         String g = gravity.toLowerCase();
         if (g.contains("center")) return "center";
         if (g.contains("end") || g.contains("right")) return "end";
         if (g.contains("start") || g.contains("left")) return "start";
+        return null;
+    }
+
+    private static String toTextAlignFromTextAlignment(String textAlignment) {
+        if (textAlignment == null) return null;
+        String t = textAlignment.toLowerCase();
+        if (t.contains("center")) return "center";
+        if (t.contains("end") || t.contains("right")) return "end";
+        if (t.contains("start") || t.contains("left")) return "start";
         return null;
     }
 }

@@ -15,7 +15,8 @@ public final class LinearLayoutRule implements NodeRule {
     public NodeSpec apply(NodeContext ctx, ViewElement e) {
         String ori = e.getAttributes() == null ? null : e.getAttributes().get("android:orientation");
         LinearLayoutSpec.Orientation orientation =
-                "horizontal".equalsIgnoreCase(ori) ? LinearLayoutSpec.Orientation.HORIZONTAL : LinearLayoutSpec.Orientation.VERTICAL;
+                // Android LinearLayout default orientation is horizontal.
+                "vertical".equalsIgnoreCase(ori) ? LinearLayoutSpec.Orientation.VERTICAL : LinearLayoutSpec.Orientation.HORIZONTAL;
 
         String gravity = e.getAttributes() == null ? null : e.getAttributes().get("android:gravity");
 

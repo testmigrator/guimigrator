@@ -1,6 +1,10 @@
 package ir;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class ComposeRenderer implements BackendRenderer {
@@ -13,10 +17,13 @@ public final class ComposeRenderer implements BackendRenderer {
         StringBuilder sb = new StringBuilder(2048);
         sb.append("import androidx.compose.foundation.background\n")
                 .append("import androidx.compose.foundation.layout.*\n")
+                .append("import androidx.compose.foundation.lazy.LazyColumn\n")
+                .append("import androidx.compose.foundation.lazy.items\n")
                 .append("import androidx.compose.material3.*\n")
                 .append("import androidx.compose.runtime.*\n")
                 .append("import androidx.compose.ui.Alignment\n")
                 .append("import androidx.compose.ui.Modifier\n")
+                .append("import androidx.compose.ui.draw.paint\n")
                 .append("import androidx.compose.ui.graphics.Color\n")
                 .append("import androidx.compose.foundation.Image\n")
                 .append("import androidx.compose.ui.res.painterResource\n")
@@ -140,10 +147,21 @@ public final class ComposeRenderer implements BackendRenderer {
 
     private String renderList(UINode node, int indent) {
         String modifier = composeModifier(node);
+        String suffix = spinnerSuffix(node);
+        String itemsVar = "listItems_" + suffix;
         String header = "LazyColumn(" + (modifier.isBlank() ? "" : "modifier = " + modifier) + ") {";
-        return indent(indent) + header + "\n"
-                + indent(indent + 2) + "items(5) { Text(\"TODO\") }" + "\n"
-                + indent(indent) + "}";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(indent(indent)).append("val ").append(itemsVar).append(" = (1..10).map { it }\n");
+        sb.append(indent(indent)).append(header).append("\n");
+        sb.append(indent(indent + 2)).append("items(").append(itemsVar).append(") { idx ->\n");
+        sb.append(indent(indent + 4)).append("Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {\n");
+        sb.append(indent(indent + 6)).append("Text(text = \"Item $idx\")\n");
+        sb.append(indent(indent + 6)).append("Text(text = \"Sub Item $idx\")\n");
+        sb.append(indent(indent + 4)).append("}\n");
+        sb.append(indent(indent + 2)).append("}\n");
+        sb.append(indent(indent)).append("}");
+        return sb.toString();
     }
 
     private String renderText(UINode node, int indent) {
@@ -237,9 +255,12 @@ public final class ComposeRenderer implements BackendRenderer {
     private String renderIconButton(UINode node, int indent) {
         String modifier = composeModifier(node);
         String src = getStr(node, SemanticPropKeys.SRC, "");
-        String iconExpr = src.isBlank()
-                ? "Icon(Icons.Default.Image, contentDescription = null)"
-                : "/* TODO map " + src + " */ Icon(Icons.Default.Image, contentDescription = null)";
+        String cd = getStr(node, "contentDescription", "");
+        String painter = toPainterExpr(src);
+        String iconExpr = (painter == null)
+                ? "/* TODO icon source: " + src + " */ Box(modifier = Modifier.size(24.dp)) {}"
+                : "Image(painter = painterResource(id = " + painter + "), contentDescription = "
+                    + (cd.isBlank() ? "null" : quote(cd)) + ", contentScale = ContentScale.Fit)";
 
         String header = "IconButton(onClick = {}" + (modifier.isBlank() ? "" : ", modifier = " + modifier) + ") {";
         return indent(indent) + header + "\n"
@@ -341,11 +362,15 @@ public final class ComposeRenderer implements BackendRenderer {
         if (node.getModifiers() == null || node.getModifiers().isEmpty()) return "";
 
         // XML <View> 用作间隔时，FillMax 常会把行高/列宽撑坏；Spacer 只保留显式 size/padding/margin。
-        UINode trimmed = node.toBuilder()
-                .modifiers(node.getModifiers().stream()
-                        .filter(m -> !(m instanceof Modifier.FillMax))
-                        .toList())
-                .build();
+        UINode trimmed = new UINode(
+                node.getKind(),
+                node.getId(),
+                node.getLayoutSpec(),
+                node.getProps(),
+                node.getModifiers().stream().filter(m -> !(m instanceof Modifier.FillMax)).toList(),
+                node.getSlots(),
+                node.getSource()
+        );
         return composeModifier(trimmed);
     }
 
@@ -368,7 +393,7 @@ public final class ComposeRenderer implements BackendRenderer {
         }
 
         String header = "Box(" + args + ") {";
-        String children = renderChildren(node.children(), indent + 2);
+        String children = renderChildrenInParent(node.children(), UIKind.STACK, indent + 2, null, null);
         return indent(indent) + header + "\n"
                 + children + (children.isBlank() ? "" : "\n")
                 + indent(indent) + "}";
@@ -473,17 +498,19 @@ public final class ComposeRenderer implements BackendRenderer {
         String modifierArg = composeModifier(node);
         String vArr = asString(node.getProps().get(SemanticPropKeys.V_ARRANGEMENT));
         String hAl  = asString(node.getProps().get(SemanticPropKeys.H_ALIGNMENT));
+        String derivedChildH = deriveDominantChildAlignment(node.children(), true);
+        String effectiveH = (hAl == null || hAl.isBlank()) ? derivedChildH : hAl;
 
         StringBuilder args = new StringBuilder();
         boolean hasAny = false;
         if (!modifierArg.isBlank()) { args.append("modifier = ").append(modifierArg); hasAny = true; }
         String va = composeVArrangement(vArr);
         if (!va.isBlank()) { if (hasAny) args.append(", "); args.append("verticalArrangement = ").append(va); hasAny = true; }
-        String ha = composeHAlignment(hAl);
+        String ha = composeHAlignment(effectiveH);
         if (!ha.isBlank()) { if (hasAny) args.append(", "); args.append("horizontalAlignment = ").append(ha); hasAny = true; }
 
         String header = "Column(" + args + ") {";
-        String children = renderChildren(node.children(), indent + 2);
+        String children = renderChildrenInParent(node.children(), UIKind.COLUMN, indent + 2, effectiveH, null);
 
         return indent(indent) + header + "\n"
                 + children + (children.isBlank() ? "" : "\n")
@@ -494,6 +521,8 @@ public final class ComposeRenderer implements BackendRenderer {
         String modifierArg = composeModifier(node);
         String hAl = asString(node.getProps().get(SemanticPropKeys.H_ALIGNMENT));
         String vArr = asString(node.getProps().get(SemanticPropKeys.V_ARRANGEMENT));
+        String derivedChildV = deriveDominantChildAlignment(node.children(), false);
+        String effectiveV = (vArr == null || vArr.isBlank()) ? derivedChildV : vArr;
         boolean hasWeightedChild = node.children().stream()
                 .flatMap(ch -> ch.getModifiers().stream())
                 .anyMatch(m -> m instanceof Modifier.Weight);
@@ -503,15 +532,137 @@ public final class ComposeRenderer implements BackendRenderer {
         if (!modifierArg.isBlank()) { args.append("modifier = ").append(modifierArg); hasAny = true; }
         String ha = hasWeightedChild ? "" : composeRowArrangement(hAl);
         if (!ha.isBlank()) { if (hasAny) args.append(", "); args.append("horizontalArrangement = ").append(ha); hasAny = true; }
-        String va = composeRowVerticalAlignment(vArr);
+        String va = composeRowVerticalAlignment(effectiveV);
         if (!va.isBlank()) { if (hasAny) args.append(", "); args.append("verticalAlignment = ").append(va); hasAny = true; }
 
         String header = "Row(" + args + ") {";
-        String children = renderChildren(node.children(), indent + 2);
+        String children = renderChildrenInParent(node.children(), UIKind.ROW, indent + 2, null, effectiveV);
 
         return indent(indent) + header + "\n"
                 + children + (children.isBlank() ? "" : "\n")
                 + indent(indent) + "}";
+    }
+
+    private String renderChildrenInParent(
+            List<UINode> children,
+            UIKind parentKind,
+            int indent,
+            String parentDefaultChildH,
+            String parentDefaultChildV
+    ) {
+        if (children == null || children.isEmpty()) return "";
+        return children.stream()
+                .map(ch -> renderNodeInParent(ch, parentKind, indent, parentDefaultChildH, parentDefaultChildV))
+                .filter(s -> s != null && !s.isBlank())
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String renderNodeInParent(
+            UINode node,
+            UIKind parentKind,
+            int indent,
+            String parentDefaultChildH,
+            String parentDefaultChildV
+    ) {
+        String child = renderNode(node, indent);
+        if (child == null || child.isBlank()) return child;
+
+        String h = getStr(node, SemanticPropKeys.CHILD_H_ALIGNMENT, "").toLowerCase();
+        String v = getStr(node, SemanticPropKeys.CHILD_V_ALIGNMENT, "").toLowerCase();
+
+        // In Column: layout_gravity mainly controls horizontal placement of each child.
+        if (parentKind == UIKind.COLUMN && !h.isBlank()) {
+            if (h.equalsIgnoreCase(safe(parentDefaultChildH))) return child;
+            String a = switch (h) {
+                case "center" -> "Alignment.TopCenter";
+                case "end" -> "Alignment.TopEnd";
+                default -> "Alignment.TopStart";
+            };
+            return indent(indent) + "Box(modifier = Modifier.fillMaxWidth(), contentAlignment = " + a + ") {\n"
+                    + child + "\n"
+                    + indent(indent) + "}";
+        }
+
+        // In Row: layout_gravity mainly controls vertical placement of each child.
+        if (parentKind == UIKind.ROW && !v.isBlank()) {
+            if (v.equalsIgnoreCase(safe(parentDefaultChildV))) return child;
+            String a = switch (v) {
+                case "center" -> "Alignment.CenterStart";
+                case "end" -> "Alignment.BottomStart";
+                default -> "Alignment.TopStart";
+            };
+            return indent(indent) + "Box(modifier = Modifier.fillMaxHeight(), contentAlignment = " + a + ") {\n"
+                    + child + "\n"
+                    + indent(indent) + "}";
+        }
+
+        // In Box/Frame-like stacks: layout_gravity may control both axes.
+        if (parentKind == UIKind.STACK && (!h.isBlank() || !v.isBlank())) {
+            String align = composeStackAlignment(h, v);
+            if (!align.isBlank()) {
+                return indent(indent) + "Box(modifier = Modifier.align(" + align + ")) {\n"
+                        + child + "\n"
+                        + indent(indent) + "}";
+            }
+        }
+
+        // Flatten synthetic alignment wrappers emitted by RelativeLayout normalizer.
+        if (parentKind == UIKind.STACK) {
+            String explicitAlign = asString(node.getProps().get(SemanticPropKeys.BOX_ALIGNMENT));
+            if (!explicitAlign.isBlank() && node.getKind() == UIKind.STACK && node.children().size() == 1 && isAlignmentWrapper(node)) {
+                UINode inner = node.children().get(0);
+                String innerRendered = renderNode(inner, indent + 2);
+                String align = composeBoxAlignment(explicitAlign);
+                if (!align.isBlank()) {
+                    return indent(indent) + "Box(modifier = Modifier.align(" + align + ")) {\n"
+                            + innerRendered + "\n"
+                            + indent(indent) + "}";
+                }
+                return innerRendered;
+            }
+            if (!explicitAlign.isBlank()) {
+                String align = composeBoxAlignment(explicitAlign);
+                if (!align.isBlank()) {
+                    return indent(indent) + "Box(modifier = Modifier.align(" + align + ")) {\n"
+                            + child + "\n"
+                            + indent(indent) + "}";
+                }
+            }
+        }
+
+        return child;
+    }
+
+    private String deriveDominantChildAlignment(List<UINode> children, boolean horizontal) {
+        if (children == null || children.isEmpty()) return "";
+        Map<String, Integer> freq = new HashMap<>();
+        String key = horizontal ? SemanticPropKeys.CHILD_H_ALIGNMENT : SemanticPropKeys.CHILD_V_ALIGNMENT;
+        for (UINode ch : children) {
+            String s = getStr(ch, key, "").toLowerCase();
+            if (s.isBlank()) continue;
+            freq.put(s, freq.getOrDefault(s, 0) + 1);
+        }
+        if (freq.isEmpty()) return "";
+        String best = "";
+        int bestCnt = 0;
+        for (Map.Entry<String, Integer> e : freq.entrySet()) {
+            if (e.getValue() > bestCnt) {
+                best = e.getKey();
+                bestCnt = e.getValue();
+            }
+        }
+        // Avoid overfitting when only a single child has alignment.
+        return bestCnt >= 2 ? best : "";
+    }
+
+    private String safe(String s) {
+        return s == null ? "" : s.toLowerCase();
+    }
+
+    private boolean isAlignmentWrapper(UINode node) {
+        if (node.getModifiers() == null || node.getModifiers().isEmpty()) return true;
+        // Synthetic wrappers normally only carry FillMax; treat as flattenable.
+        return node.getModifiers().stream().allMatch(m -> m instanceof Modifier.FillMax);
     }
 
     private String renderChildren(List<UINode> children, int indent) {
@@ -589,6 +740,24 @@ public final class ComposeRenderer implements BackendRenderer {
         };
     }
 
+    private String composeStackAlignment(String h, String v) {
+        String hh = (h == null || h.isBlank()) ? "start" : h;
+        String vv = (v == null || v.isBlank()) ? "start" : v;
+        if ("center".equals(vv)) {
+            if ("center".equals(hh)) return "Alignment.Center";
+            if ("end".equals(hh)) return "Alignment.CenterEnd";
+            return "Alignment.CenterStart";
+        }
+        if ("end".equals(vv)) {
+            if ("center".equals(hh)) return "Alignment.BottomCenter";
+            if ("end".equals(hh)) return "Alignment.BottomEnd";
+            return "Alignment.BottomStart";
+        }
+        if ("center".equals(hh)) return "Alignment.TopCenter";
+        if ("end".equals(hh)) return "Alignment.TopEnd";
+        return "Alignment.TopStart";
+    }
+
     // --- modifier mapping ---
     private String renderComposeModifierArg(UINode node) {
         String m = composeModifier(node);
@@ -596,13 +765,29 @@ public final class ComposeRenderer implements BackendRenderer {
     }
 
     private String composeModifier(UINode node) {
-        if (node.getModifiers() == null || node.getModifiers().isEmpty()) return "";
+        List<Modifier> mods = node.getModifiers() == null ? List.of() : node.getModifiers();
+        boolean hasBgModifier = mods.stream().anyMatch(mod -> mod instanceof Modifier.Background);
 
-        boolean hasWeight = node.getModifiers().stream().anyMatch(mod -> mod instanceof Modifier.Weight);
+        String bgProp = asString(node.getProps().get(SemanticPropKeys.BACKGROUND));
+        boolean hasBgProp = bgProp != null && !bgProp.isBlank();
+
+        if (mods.isEmpty() && !hasBgProp) return "";
+
+        boolean hasWeight = mods.stream().anyMatch(mod -> mod instanceof Modifier.Weight);
 
         StringBuilder sb = new StringBuilder("Modifier");
+        Set<String> seenSegments = new LinkedHashSet<>();
 
-        for (Modifier m : node.getModifiers()) {
+        // Fallback: for drawable/mipmap backgrounds stored in props (not in modifiers),
+        // still emit a background modifier so container backgrounds are not lost.
+        if (!hasBgModifier && hasBgProp) {
+            String bgSeg = composeBackgroundModifier(new SemanticValue.Str(bgProp));
+            if (!bgSeg.isBlank() && seenSegments.add(bgSeg)) {
+                sb.append(bgSeg);
+            }
+        }
+
+        for (Modifier m : mods) {
             // ✅ Row/Column weight 下不需要 fillMaxWidth
             if (hasWeight && m instanceof Modifier.FillMax fm && fm.width()) {
                 continue;
@@ -632,13 +817,13 @@ public final class ComposeRenderer implements BackendRenderer {
                 }
                 case Modifier.Padding p -> composePadding(p);
                 case Modifier.Margin mg -> composeMarginAsPadding(mg); // 近似
-                case Modifier.Background b -> ".background(" + composeBackground(b.color()) + ")";
+                case Modifier.Background b -> composeBackgroundModifier(b.color());
 //                case Modifier.Alpha a -> ".alpha(" + a.value() + "f)";
                 case Modifier.Align a -> ""; // 先不做（scope 相关）
                 default -> throw new IllegalStateException("Unexpected value: " + m);
             };
 
-            if (!seg.isBlank()) sb.append(seg);
+            if (!seg.isBlank() && seenSegments.add(seg)) sb.append(seg);
         }
 
         return sb.toString().equals("Modifier") ? "" : sb.toString();
@@ -707,6 +892,23 @@ public final class ComposeRenderer implements BackendRenderer {
         }
         if (v instanceof SemanticValue.Expr e) return e.code();
         return "Color.Unspecified";
+    }
+
+    private String composeBackgroundModifier(SemanticValue v) {
+        if (v instanceof SemanticValue.Str s) {
+            String raw = s.value();
+            if (raw == null) return ".background(Color.Unspecified)";
+            String ref = raw.trim();
+            String painter = toPainterExpr(ref);
+            if (painter != null) {
+                return ".paint(painterResource(id = " + painter + "), contentScale = ContentScale.Crop)";
+            }
+            return ".background(" + composeBackground(v) + ")";
+        }
+        if (v instanceof SemanticValue.Expr e) {
+            return ".background(" + e.code() + ")";
+        }
+        return ".background(Color.Unspecified)";
     }
 
     private String composeColorExpr(SemanticValue v) {

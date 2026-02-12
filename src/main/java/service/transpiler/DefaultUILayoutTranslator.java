@@ -71,39 +71,17 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
         walk(root, v -> fillAndUpdateIncludeAttrValue(v, context));
     }
 
-    private BackendRenderer.RenderResult renderWithNewPipeline(XmlLayout xmlLayout, String targetPlatform) {
-        NodeRuleRegistry registry = new NodeRuleRegistry(new FallbackRule())
-                .register(new DrawerLayoutRule())
-                .register(new RelativeLayoutRule())
-                .register(new ConstraintLayoutRule())
-                .register(new LinearLayoutRule())
-                .register(new FrameLayoutRule())
-                .register(new ScrollViewRule())
+    private BackendRenderer.RenderResult renderWithNewPipeline(XmlLayout xmlLayout, TargetBackend targetBackend) {
+        NodeRuleRegistry registry = switch (targetBackend) {
+            case SWIFTUI -> buildSwiftUiRegistry();
+            case COMPOSE -> buildComposeRegistry();
+        };
 
-                .register(new TextInputLayoutRule())
-                .register(new AutoCompleteTextViewRule())
-                .register(new EditTextRule())
-
-                .register(new RecyclerViewRule())
-                .register(new SpinnerRule())
-                .register(new ViewRule())
-
-                .register(new RadioGroupRule())
-                .register(new RadioButtonRule())
-
-                .register(new ImageButtonRule())
-                .register(new ProgressBarRule())
-
-                .register(new TextRule())
-                .register(new ImageRule())
-                .register(new ButtonRule())
-
-                ;
-
+        BackendProfile backendProfile = BackendProfiles.of(targetBackend);
         SemanticTreeTranslator translator = new SemanticTreeTranslator(
                 registry,
                 new SlotBinder(),
-                new DefaultCommonAttributeTranslator()
+                backendProfile.commonAttributeTranslator()
         );
 
         UINode uiTree = translator.translateTree(
@@ -111,29 +89,76 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
                 xmlLayout.getViewElement()
         );
 
-        LayoutNormalizer layoutNormalizer = new LayoutNormalizer(List.of(
-                new LinearLayoutNormalizerPass(),
-                new FrameLayoutNormalizerPass(),
-                new ConstraintNormalizerPass(),
-                new RelativeLayoutNormalizerPass(),
-                new ScrollNormalizerPass(),
-                new RowSafetyNormalizerPass()
-        ));
+        LayoutNormalizer layoutNormalizer = new LayoutNormalizer(backendProfile.layoutPasses());
         UINode normalized = layoutNormalizer.normalize(uiTree);
 
         String baseName = TargetUICodeGenerator.getXmlFileNameWithoutExtension(xmlLayout.getXmlFilepath());
-        BackendRenderer renderer = "SWIFTUI".equalsIgnoreCase(targetPlatform)
-                ? new SwiftUIRenderer()
-                : new ComposeRenderer();
+        BackendRenderer renderer = backendProfile.renderer();
         return renderer.render(normalized, new BackendRenderer.RenderConfig(baseName));
     }
 
+    private NodeRuleRegistry buildComposeRegistry() {
+        // Keep Compose registry isolated so rule-level Compose experiments do not leak into SwiftUI.
+        return new NodeRuleRegistry(new FallbackRule())
+                .register(new DrawerLayoutRule())
+                .register(new RelativeLayoutRule())
+                .register(new ConstraintLayoutRule())
+                .register(new LinearLayoutRule())
+                .register(new FrameLayoutRule())
+                .register(new ScrollViewRule())
+                .register(new TextInputLayoutRule())
+                .register(new AutoCompleteTextViewRule())
+                .register(new EditTextRule())
+                .register(new RecyclerViewRule())
+                .register(new ListViewRule())
+                .register(new SpinnerRule())
+                .register(new TableLayoutRule())
+                .register(new TableRowRule())
+                .register(new ViewRule())
+                .register(new RadioGroupRule())
+                .register(new RadioButtonRule())
+                .register(new ImageButtonRule())
+                .register(new ProgressBarRule())
+                .register(new TextRule())
+                .register(new ImageRule())
+                .register(new ButtonRule());
+    }
+
+    private NodeRuleRegistry buildSwiftUiRegistry() {
+        // Keep SwiftUI registry isolated so Swift-only fallback policy can evolve independently.
+        return new NodeRuleRegistry(new FallbackRule())
+                .register(new DrawerLayoutRule())
+                .register(new RelativeLayoutRule())
+                .register(new ConstraintLayoutRule())
+                .register(new LinearLayoutRule())
+                .register(new FrameLayoutRule())
+                .register(new ScrollViewRule())
+                .register(new TextInputLayoutRule())
+                .register(new AutoCompleteTextViewRule())
+                .register(new EditTextRule())
+                .register(new RecyclerViewRule())
+                .register(new ListViewRule())
+                .register(new SpinnerRule())
+                .register(new TableLayoutRule())
+                .register(new TableRowRule())
+                .register(new ViewRule())
+                .register(new RadioGroupRule())
+                .register(new RadioButtonRule())
+                .register(new ImageButtonRule())
+                .register(new ProgressBarRule())
+                .register(new TextRule())
+                .register(new ImageRule())
+                .register(new ButtonRule());
+    }
+
     private TargetUICode generateTargetUICode(XmlLayout xmlLayout, UIResourceContext context, TaskParam taskParam) {
-        BackendRenderer.RenderResult result = renderWithNewPipeline(xmlLayout, taskParam.getTargetPlatform());
+        TargetBackend backend = TargetBackend.from(taskParam.getTargetPlatform());
+        BackendProfile backendProfile = BackendProfiles.of(backend);
+        BackendRenderer.RenderResult result = renderWithNewPipeline(xmlLayout, backend);
         String filename = stripExt(result.filename());
         String code = result.code();
 
-        if ("COMPOSE".equalsIgnoreCase(taskParam.getTargetPlatform())) {
+        if (backendProfile.appendComposePreview()) {
             code = appendComposePreview(code, filename);
         }
 

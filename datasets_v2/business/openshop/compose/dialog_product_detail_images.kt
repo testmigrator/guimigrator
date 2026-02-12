@@ -43,7 +43,7 @@ fun dialog_product_detail_images() {
     }
 @Preview(showBackground = true)
 @Composable
-fun dialog_product_detail_imagesp() {
+fun p1() {
     MyApplicationTheme {
         dialog_product_detail_images()
     }

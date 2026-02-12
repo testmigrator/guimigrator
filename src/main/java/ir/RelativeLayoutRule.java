@@ -20,12 +20,18 @@ public final class RelativeLayoutRule implements NodeRule {
 
         if (e.getChildren() != null) {
             for (ViewElement ch : e.getChildren()) {
-                String id = normalizeId(ch.getViewId());
-                if (id == null) continue;
+                String id = childKey(ch);
+                if (id == null || id.isBlank()) continue;
 
                 Map<String, String> a = ch.getAttributes();
                 String below = normalizeId(attr(a, "android:layout_below"));
                 String above = normalizeId(attr(a, "android:layout_above"));
+                String alignTop = normalizeId(attr(a, "android:layout_alignTop"));
+                String alignBottom = normalizeId(attr(a, "android:layout_alignBottom"));
+                String alignStart = normalizeId(firstNonBlank(attr(a, "android:layout_alignStart"), attr(a, "android:layout_alignLeft")));
+                String alignEnd = normalizeId(firstNonBlank(attr(a, "android:layout_alignEnd"), attr(a, "android:layout_alignRight")));
+                String toStartOf = normalizeId(firstNonBlank(attr(a, "android:layout_toStartOf"), attr(a, "android:layout_toLeftOf")));
+                String toEndOf = normalizeId(firstNonBlank(attr(a, "android:layout_toEndOf"), attr(a, "android:layout_toRightOf")));
 
                 boolean centerH = boolAttr(a, "android:layout_centerHorizontal");
                 boolean centerP = boolAttr(a, "android:layout_centerInParent");
@@ -39,6 +45,12 @@ public final class RelativeLayoutRule implements NodeRule {
                 rules.put(id, RelativeLayoutSpec.RelativeRules.builder()
                         .belowId(below)
                         .aboveId(above)
+                        .alignTopId(alignTop)
+                        .alignBottomId(alignBottom)
+                        .alignStartId(alignStart)
+                        .alignEndId(alignEnd)
+                        .toStartOfId(toStartOf)
+                        .toEndOfId(toEndOf)
                         .centerHorizontal(centerH)
                         .centerInParent(centerP)
                         .centerVertical(centerV)
@@ -82,5 +94,18 @@ public final class RelativeLayoutRule implements NodeRule {
         if (s.startsWith("@android:id/")) return s.substring("@android:id/".length());
         // viewId 本身可能已经是纯 id
         return s;
+    }
+
+    private static String childKey(ViewElement ch) {
+        String id = normalizeId(ch.getViewId());
+        if (id != null && !id.isBlank()) return id;
+        if (ch.getUid() != null && !ch.getUid().isBlank()) return ch.getUid();
+        return null;
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        if (b != null && !b.isBlank()) return b;
+        return null;
     }
 }

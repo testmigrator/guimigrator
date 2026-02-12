@@ -9,6 +9,15 @@ import ir.SemanticValue;
 import java.util.*;
 
 public final class DefaultCommonAttributeTranslator implements CommonAttributeTranslator {
+    private final boolean emitChildLayoutGravity;
+
+    public DefaultCommonAttributeTranslator() {
+        this(true);
+    }
+
+    public DefaultCommonAttributeTranslator(boolean emitChildLayoutGravity) {
+        this.emitChildLayoutGravity = emitChildLayoutGravity;
+    }
 
     @Override
     public CommonAttrs translate(NodeContext ctx, ViewElement e) {
@@ -40,7 +49,13 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         String bg = v(a, "android:background");
 //        System.out.println("ViewElementViewElementViewElementViewElementViewElement:"+e);
 //        System.out.println("backgroundbackgroundbackgroundbackgroundbackgroundbackground: "+bg);
-        if (bg != null) mods.add(new Modifier.Background(new SemanticValue.Str(bg)));
+        if (bg != null) {
+            props.put(SemanticPropKeys.BACKGROUND, new SemanticValue.Str(bg));
+            // Drawable/mipmap background should be rendered as image paint in target code, not Color background.
+            if (!isImageResourceRef(bg)) {
+                mods.add(new Modifier.Background(new SemanticValue.Str(bg)));
+            }
+        }
 
         // size
         applySize(v(a, "android:layout_width"), v(a, "android:layout_height"), mods);
@@ -100,6 +115,10 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         String dPad = v(a, "android:drawablePadding");
         if (dPad != null) props.put(SemanticPropKeys.DRAWABLE_PADDING, new SemanticValue.Str(dPad));
 
+        // child layout alignment in parent container (e.g., android:layout_gravity="center_horizontal")
+        if (emitChildLayoutGravity) {
+            applyLayoutGravity(v(a, "android:layout_gravity"), props);
+        }
 
         return new CommonAttrs(List.copyOf(mods), Map.copyOf(props));
     }
@@ -169,7 +188,9 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         if (v == null) return null;
         String t = v.trim().toLowerCase(Locale.ROOT);
         if (t.startsWith("@dimen/")) return null; // 留给资源解析
-        if (t.endsWith("dp")) t = t.substring(0, t.length() - 2).trim();
+        if (t.endsWith("dp") || t.endsWith("sp") || t.endsWith("px")) {
+            t = t.substring(0, t.length() - 2).trim();
+        }
         if (t.equals("wrap_content") || t.equals("match_parent") || t.equals("0dp")) return null;
         try { return Double.valueOf(t); } catch (Exception ex) { return null; }
     }
@@ -213,5 +234,39 @@ public final class DefaultCommonAttributeTranslator implements CommonAttributeTr
         if (v == null) return;
         EnumSet<Modifier.Padding.Edge> edges = EnumSet.of(edge);
         mods.add(isPadding ? new Modifier.Padding(v, edges) : new Modifier.Margin(v, edges));
+    }
+
+    private static boolean isImageResourceRef(String bg) {
+        if (bg == null) return false;
+        String v = bg.trim().toLowerCase(Locale.ROOT);
+        return v.startsWith("@drawable/")
+                || v.startsWith("@mipmap/")
+                || v.startsWith("@android:drawable/")
+                || v.startsWith("@android:mipmap/");
+    }
+
+    private static void applyLayoutGravity(String layoutGravity, Map<String, SemanticValue> props) {
+        if (layoutGravity == null || layoutGravity.isBlank()) return;
+        String g = layoutGravity.toLowerCase(Locale.ROOT);
+
+        String h = null;
+        String v = null;
+
+        if (g.contains("center_horizontal")) h = "center";
+        else if (g.contains("end") || g.contains("right")) h = "end";
+        else if (g.contains("start") || g.contains("left")) h = "start";
+
+        if (g.contains("center_vertical")) v = "center";
+        else if (g.contains("bottom")) v = "end";
+        else if (g.contains("top")) v = "start";
+
+        // plain "center" means both axes.
+        if ("center".equals(g) || g.contains("center|")) {
+            if (h == null) h = "center";
+            if (v == null) v = "center";
+        }
+
+        if (h != null) props.put(SemanticPropKeys.CHILD_H_ALIGNMENT, new SemanticValue.Str(h));
+        if (v != null) props.put(SemanticPropKeys.CHILD_V_ALIGNMENT, new SemanticValue.Str(v));
     }
 }

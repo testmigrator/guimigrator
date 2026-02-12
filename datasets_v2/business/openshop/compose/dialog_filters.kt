@@ -1,3 +1,4 @@
+package com.example.myapplication
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.ui.theme.MyApplicationTheme
 
 @Composable
 fun dialog_filters() {  androidx.compose.material3.Surface(
@@ -43,3 +45,14 @@ fun dialog_filters() {  androidx.compose.material3.Surface(
     }
 }
 }
+@Preview(showBackground = true)
+@Composable
+fun dialog_filterspre() {
+    MyApplicationTheme {
+        dialog_filters()
+    }
+}
+
+
+
+

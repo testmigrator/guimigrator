@@ -1,3 +1,4 @@
+package com.example.myapplication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -11,7 +12,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.ui.theme.MyApplicationTheme
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun dialog_discount_fragment() {
     Box(modifier = Modifier.background(Color(0xFFFFFFFF)).fillMaxWidth()) {
@@ -30,6 +33,14 @@ fun dialog_discount_fragment() {
         }
         Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(), contentAlignment = Alignment.TopStart) {
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun dialog_discount_fragmentpre() {
+    MyApplicationTheme {
+        dialog_discount_fragment()
     }
 }
 
