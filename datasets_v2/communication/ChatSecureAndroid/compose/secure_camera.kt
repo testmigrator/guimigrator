@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -20,10 +21,12 @@ fun secure_camera() {
   Box(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
     }
-    Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(), contentAlignment = Alignment.BottomStart) {
+    Box(modifier = Modifier.align(Alignment.BottomStart)) {
       Column(modifier = Modifier.background(Color(0xB3000000)).fillMaxWidth().wrapContentHeight().padding(20.0.dp)) {
-        Button(onClick = {}, enabled = true, modifier = Modifier.background(Color.Unspecified).size(82.0.dp, 82.0.dp)) {
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Button(onClick = {}, enabled = true, modifier = Modifier.paint(painterResource(id = R.drawable.camera_button_inactive), contentScale = ContentScale.Crop).size(82.0.dp, 82.0.dp)) {
           Text(text = "")
+        }
         }
       }
     }

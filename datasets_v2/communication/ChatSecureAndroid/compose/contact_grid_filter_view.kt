@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -20,7 +21,7 @@ fun contact_grid_filter_view() {
   Column(modifier = Modifier.background(Color(0x00000000)).fillMaxWidth().fillMaxHeight().padding(0.0.dp)) {
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(0.0.dp)) {
     }
-    Text(text = "No contacts found.nnTap to invite.", modifier = Modifier.fillMaxWidth().fillMaxHeight(), fontSize = TextUnit.Unspecified, textAlign = TextAlign.Center)
+    Text(text = "No contacts found.nnTap to invite.", modifier = Modifier.fillMaxWidth().fillMaxHeight(), fontSize = 24.sp, textAlign = TextAlign.Center)
   }
 }
 

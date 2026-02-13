@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -18,7 +19,6 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun imglist_item() {
   Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-
     Box(modifier = Modifier.wrapContentWidth().wrapContentHeight()) { /* TODO Image */ }
     Text(text = "", modifier = Modifier.wrapContentWidth().wrapContentHeight(), color = Color(0xFF000000))
   }

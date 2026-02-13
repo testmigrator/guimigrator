@@ -153,7 +153,18 @@ public final class SwiftUIRenderer implements BackendRenderer {
         if (src == null || src.isBlank()) {
             src = getStr(node, SemanticPropKeys.BACKGROUND, "");
         }
+        String scaleType = getStr(node, SemanticPropKeys.SCALE_TYPE, "");
+        boolean needsResizable = hasSizeOrFillModifier(node) || (scaleType != null && !scaleType.isBlank());
+
         String expr = swiftImageExpr(src);
+        if (needsResizable) {
+            expr += ".resizable()";
+            if ("centercrop".equalsIgnoreCase(scaleType) || "center_crop".equalsIgnoreCase(scaleType)) {
+                expr += ".scaledToFill()";
+            } else {
+                expr += ".scaledToFit()";
+            }
+        }
         return indent(indent) + applyModifiersInline(expr, node);
     }
 
@@ -194,11 +205,14 @@ public final class SwiftUIRenderer implements BackendRenderer {
     }
     private String renderList(UINode node, int indent) {
         StringBuilder sb = new StringBuilder();
-        sb.append(indent(indent)).append("List {\n");
-        sb.append(indent(indent + 2)).append("ForEach(1...10, id: \\.self) { idx in\n");
-        sb.append(indent(indent + 4)).append("VStack(alignment: .leading, spacing: 2) {\n");
-        sb.append(indent(indent + 6)).append("Text(\"Item \\(idx)\")\n");
-        sb.append(indent(indent + 6)).append("Text(\"Sub Item \\(idx)\")\n");
+        sb.append(indent(indent)).append("ScrollView {\n");
+        sb.append(indent(indent + 2)).append("LazyVStack(alignment: .leading, spacing: 4) {\n");
+        sb.append(indent(indent + 4)).append("ForEach(1...10, id: \\.self) { idx in\n");
+        sb.append(indent(indent + 6)).append("VStack(alignment: .leading, spacing: 2) {\n");
+        sb.append(indent(indent + 8)).append("Text(\"Item \\(idx)\")\n");
+        sb.append(indent(indent + 8)).append("Text(\"Sub Item \\(idx)\")\n");
+        sb.append(indent(indent + 6)).append("}\n");
+        sb.append(indent(indent + 6)).append("Divider()\n");
         sb.append(indent(indent + 4)).append("}\n");
         sb.append(indent(indent + 2)).append("}\n");
         sb.append(indent(indent)).append("}");
@@ -249,15 +263,33 @@ public final class SwiftUIRenderer implements BackendRenderer {
 
     private String renderScrollView(UINode node, int indent) {
         String body = renderChildren(node.children(), indent + 2);
-        String expr = indent(indent) + "ScrollView {\n"
+        String axis = getStr(node, "scrollAxis", "vertical");
+        String header = "horizontal".equalsIgnoreCase(axis)
+                ? "ScrollView(.horizontal, showsIndicators: false)"
+                : "ScrollView";
+        String expr = indent(indent) + header + " {\n"
                 + body + (body.isBlank() ? "" : "\n")
                 + indent(indent) + "}";
         return applyModifiersMultiline(expr, node, indent);
     }
 
     private String renderSpacer(UINode node, int indent) {
+        String bgRaw = asString(node.getProps() == null ? null : node.getProps().get(SemanticPropKeys.BACKGROUND));
+        Double h = explicitHeight(node);
+        Double w = explicitWidth(node);
+        boolean dividerLike = bgRaw != null && !bgRaw.isBlank() && h != null && h <= 2.0;
+        if (dividerLike) {
+            String expr = indent(indent) + "Rectangle().foregroundColor(" + swiftBackground(node.getProps().get(SemanticPropKeys.BACKGROUND)) + ")";
+            return applyModifiersMultiline(expr, withoutBackgroundProp(trimSpacerFillMax(node)), indent);
+        }
+        boolean hasBg = bgRaw != null && !bgRaw.isBlank();
+        boolean fixedGap = (h != null || w != null);
+        if (hasBg && fixedGap) {
+            String expr = indent(indent) + "Color.clear";
+            return applyModifiersMultiline(expr, withoutBackgroundProp(trimSpacerFillMax(node)), indent);
+        }
         String expr = indent(indent) + "Spacer()";
-        return applyModifiersMultiline(expr, node, indent);
+        return applyModifiersMultiline(expr, trimSpacerFillMax(node), indent);
     }
 
 
@@ -283,9 +315,14 @@ public final class SwiftUIRenderer implements BackendRenderer {
 
     private String renderButton(UINode node, int indent) {
         List<UINode> labelNodes = node.slot(SlotKey.LABEL);
-        String label = labelNodes.isEmpty()
+        UINode labelNode = labelNodes.isEmpty() ? null : labelNodes.get(0);
+        String label = labelNode == null
                 ? indent(indent + 2) + "Text(\"\")"
-                : renderNode(labelNodes.get(0), indent + 2);
+                : renderNode(labelNode, indent + 2);
+        if (labelNode != null) {
+            String style = getStr(node, SemanticPropKeys.VIEW_STYLE, "");
+            label = alignButtonLabel(labelNode, label, indent + 2, style);
+        }
 
         StringBuilder sb = new StringBuilder();
         sb.append(indent(indent))
@@ -300,8 +337,36 @@ public final class SwiftUIRenderer implements BackendRenderer {
             out += "\n" + indent(indent) + ".disabled(" + (!enabled) + ")";
         }
 
+        String style = getStr(node, SemanticPropKeys.VIEW_STYLE, "");
+        if (!style.isBlank()) {
+            String swiftStyle = mapButtonStyle(style);
+            if (!swiftStyle.isBlank()) {
+                out += "\n" + indent(indent) + swiftStyle;
+            }
+        }
+
         out = applyModifiersMultiline(out, node, indent);
         return out;
+    }
+
+    private String alignButtonLabel(UINode labelNode, String rendered, int indent, String styleRaw) {
+        if (labelNode == null || rendered == null || rendered.isBlank()) return rendered;
+        String align = getStr(labelNode, SemanticPropKeys.TEXT_ALIGN, "");
+        if (align.isBlank() && styleRaw != null) {
+            String s = styleRaw.toLowerCase();
+            if (s.contains("buttonstylesmall")) {
+                align = "start";
+            }
+        }
+        if (align.isBlank()) return rendered;
+        String frameAlign = switch (align) {
+            case "start" -> ".leading";
+            case "end" -> ".trailing";
+            case "center" -> ".center";
+            default -> "";
+        };
+        if (frameAlign.isBlank()) return rendered;
+        return wrapWithFrame(rendered, indent, ".frame(maxWidth: .infinity, alignment: " + frameAlign + ")");
     }
 
     private String renderVStack(UINode node, int indent) {
@@ -376,10 +441,8 @@ public final class SwiftUIRenderer implements BackendRenderer {
                 case "end" -> ".trailing";
                 default -> ".leading";
             };
-            return indent(indent) + "Group {\n"
-                    + child + "\n"
-                    + indent(indent) + "}\n"
-                    + indent(indent) + ".frame(maxWidth: .infinity, alignment: " + frameAlign + ")";
+            String frameSuffix = ".frame(maxWidth: .infinity, alignment: " + frameAlign + ")";
+            return wrapWithFrame(child, indent, frameSuffix);
         }
 
         if (parentKind == UIKind.ROW && !v.isBlank() && !v.equalsIgnoreCase(safe(parentDefaultChildV))) {
@@ -388,10 +451,8 @@ public final class SwiftUIRenderer implements BackendRenderer {
                 case "end" -> ".bottom";
                 default -> ".center";
             };
-            return indent(indent) + "Group {\n"
-                    + child + "\n"
-                    + indent(indent) + "}\n"
-                    + indent(indent) + ".frame(maxHeight: .infinity, alignment: " + frameAlign + ")";
+            String frameSuffix = ".frame(maxHeight: .infinity, alignment: " + frameAlign + ")";
+            return wrapWithFrame(child, indent, frameSuffix);
         }
 
         if (parentKind == UIKind.STACK) {
@@ -400,10 +461,7 @@ public final class SwiftUIRenderer implements BackendRenderer {
                 String innerRendered = renderNode(node.children().get(0), indent);
                 String align = swiftStackAlignment(explicitAlign);
                 if (!align.isBlank()) {
-                    return indent(indent) + "Group {\n"
-                            + innerRendered + "\n"
-                            + indent(indent) + "}\n"
-                            + indent(indent) + ".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: " + align + ")";
+                    return wrapWithFrame(innerRendered, indent, stackAlignmentFrameSuffix(align));
                 }
                 return innerRendered;
             }
@@ -411,20 +469,14 @@ public final class SwiftUIRenderer implements BackendRenderer {
             if ((!h.isBlank() || !v.isBlank()) && explicitAlign.isBlank()) {
                 String align = swiftStackAlignmentFromChild(h, v);
                 if (!align.isBlank()) {
-                    return indent(indent) + "Group {\n"
-                            + child + "\n"
-                            + indent(indent) + "}\n"
-                            + indent(indent) + ".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: " + align + ")";
+                    return wrapWithFrame(child, indent, stackAlignmentFrameSuffix(align));
                 }
             }
 
             if (!explicitAlign.isBlank()) {
                 String align = swiftStackAlignment(explicitAlign);
                 if (!align.isBlank()) {
-                    return indent(indent) + "Group {\n"
-                            + child + "\n"
-                            + indent(indent) + "}\n"
-                            + indent(indent) + ".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: " + align + ")";
+                    return wrapWithFrame(child, indent, stackAlignmentFrameSuffix(align));
                 }
             }
         }
@@ -478,6 +530,54 @@ public final class SwiftUIRenderer implements BackendRenderer {
         return UINode.builder().kind(UIKind.SPACER).build();
     }
 
+    private UINode trimSpacerFillMax(UINode node) {
+        if (node.getModifiers() == null || node.getModifiers().isEmpty()) return node;
+        List<Modifier> mods = node.getModifiers().stream()
+                .filter(m -> !(m instanceof Modifier.FillMax))
+                .toList();
+        return new UINode(
+                node.getKind(),
+                node.getId(),
+                node.getLayoutSpec(),
+                node.getProps(),
+                mods,
+                node.getSlots(),
+                node.getSource()
+        );
+    }
+
+    private Double explicitHeight(UINode node) {
+        if (node.getModifiers() == null) return null;
+        for (Modifier m : node.getModifiers()) {
+            if (m instanceof Modifier.Size s && s.height() != null) return s.height();
+        }
+        return null;
+    }
+
+    private Double explicitWidth(UINode node) {
+        if (node.getModifiers() == null) return null;
+        for (Modifier m : node.getModifiers()) {
+            if (m instanceof Modifier.Size s && s.width() != null) return s.width();
+        }
+        return null;
+    }
+
+    private UINode withoutBackgroundProp(UINode node) {
+        if (node.getProps() == null || node.getProps().isEmpty()) return node;
+        if (!node.getProps().containsKey(SemanticPropKeys.BACKGROUND)) return node;
+        java.util.Map<String, SemanticValue> p = new java.util.HashMap<>(node.getProps());
+        p.remove(SemanticPropKeys.BACKGROUND);
+        return new UINode(
+                node.getKind(),
+                node.getId(),
+                node.getLayoutSpec(),
+                java.util.Map.copyOf(p),
+                node.getModifiers(),
+                node.getSlots(),
+                node.getSource()
+        );
+    }
+
     // --- modifier mapping ---
     private String applyModifiersInline(String expr, UINode node) {
         String out = expr;
@@ -486,21 +586,48 @@ public final class SwiftUIRenderer implements BackendRenderer {
         }
         if (node.getModifiers() == null || node.getModifiers().isEmpty()) return out;
         Set<String> seen = new LinkedHashSet<>();
+        boolean hasFullInfinityFrame = false;
         for (Modifier m : node.getModifiers()) {
-            String suffix = modifierSuffix(m);
-            if (suffix.isBlank() || !seen.add(suffix)) continue;
+            String suffix = modifierSuffix(node, m);
+            if (suffix.isBlank()) continue;
+            if (isFullInfinityFrame(suffix)) {
+                hasFullInfinityFrame = true;
+            } else if (hasFullInfinityFrame && isPartialInfinityFrame(suffix)) {
+                continue;
+            }
+            if (!seen.add(suffix)) continue;
             out += suffix;
         }
         return out;
     }
 
-    private String modifierSuffix(Modifier m) {
+    private String modifierSuffix(UINode node, Modifier m) {
         return switch (m) {
             case Modifier.FillMax f -> {
                 String s = "";
-                if (f.width() && f.height()) yield ".frame(maxWidth: .infinity, maxHeight: .infinity)";
-                if (f.width()) s += ".frame(maxWidth: .infinity)";
-                if (f.height()) s += ".frame(maxHeight: .infinity)";
+                boolean keepWidth = f.width();
+                boolean keepHeight = f.height();
+                if (node.getKind() == UIKind.SPACER) {
+                    keepWidth = false;
+                    keepHeight = false;
+                } else if (node.getKind() == UIKind.TEXT) {
+                    keepHeight = false;
+                }
+                if (keepWidth && keepHeight) yield ".frame(maxWidth: .infinity, maxHeight: .infinity)";
+                if (keepWidth) {
+                    if (node.getKind() == UIKind.TEXT) {
+                        String textAlign = getStr(node, SemanticPropKeys.TEXT_ALIGN, "");
+                        String align = switch (textAlign) {
+                            case "center" -> ".center";
+                            case "end" -> ".trailing";
+                            default -> ".leading";
+                        };
+                        s += ".frame(maxWidth: .infinity, alignment: " + align + ")";
+                    } else {
+                        s += ".frame(maxWidth: .infinity)";
+                    }
+                }
+                if (keepHeight) s += ".frame(maxHeight: .infinity)";
                 yield s;
             }
             case Modifier.Size sz -> {
@@ -553,6 +680,7 @@ public final class SwiftUIRenderer implements BackendRenderer {
             if (raw == null || raw.isBlank()) return "Color.clear";
             String r = raw.trim();
             if (r.startsWith("#")) return swiftColorFromHex(r);
+            if (r.toLowerCase().contains("listdivider")) return "Color.gray.opacity(0.35)";
             String asset = extractSwiftAssetName(r);
             if (asset != null) return "Image(\"" + escapeSwiftString(asset) + "\").resizable().scaledToFill()";
             if ("@android:color/transparent".equalsIgnoreCase(r) || "@color/transparent".equalsIgnoreCase(r)) {
@@ -614,8 +742,30 @@ public final class SwiftUIRenderer implements BackendRenderer {
             case "start" -> "alignment: .top, spacing: 0";
             case "end" -> "alignment: .bottom, spacing: 0";
             case "center" -> "alignment: .center, spacing: 0";
+            case "leading", "trailing" -> "alignment: .center, spacing: 0";
+            case "top" -> "alignment: .top, spacing: 0";
+            case "bottom" -> "alignment: .bottom, spacing: 0";
             default -> "alignment: .center, spacing: 0";
         };
+    }
+
+    private String stackAlignmentFrameSuffix(String align) {
+        if (align == null || align.isBlank()) return ".frame(maxWidth: .infinity)";
+        if (".leading".equals(align) || ".trailing".equals(align) || ".center".equals(align)) {
+            return ".frame(maxWidth: .infinity, alignment: " + align + ")";
+        }
+        return ".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: " + align + ")";
+    }
+
+    private String wrapWithFrame(String renderedChild, int indent, String frameSuffix) {
+        if (renderedChild == null || renderedChild.isBlank()) return renderedChild;
+        if (!renderedChild.contains("\n")) {
+            return renderedChild + frameSuffix;
+        }
+        return indent(indent) + "Group {\n"
+                + renderedChild + "\n"
+                + indent(indent) + "}\n"
+                + indent(indent) + frameSuffix;
     }
 
     private boolean isAlignmentWrapper(UINode node) {
@@ -631,12 +781,28 @@ public final class SwiftUIRenderer implements BackendRenderer {
         }
         if (node.getModifiers() == null || node.getModifiers().isEmpty()) return out;
         Set<String> seen = new LinkedHashSet<>();
+        boolean hasFullInfinityFrame = false;
         for (Modifier m : node.getModifiers()) {
-            String suffix = modifierSuffix(m);
-            if (suffix.isBlank() || !seen.add(suffix)) continue;
+            String suffix = modifierSuffix(node, m);
+            if (suffix.isBlank()) continue;
+            if (isFullInfinityFrame(suffix)) {
+                hasFullInfinityFrame = true;
+            } else if (hasFullInfinityFrame && isPartialInfinityFrame(suffix)) {
+                continue;
+            }
+            if (!seen.add(suffix)) continue;
             out += "\n" + indent(indent) + suffix;
         }
         return out;
+    }
+
+    private boolean isFullInfinityFrame(String suffix) {
+        return ".frame(maxWidth: .infinity, maxHeight: .infinity)".equals(suffix);
+    }
+
+    private boolean isPartialInfinityFrame(String suffix) {
+        return ".frame(maxWidth: .infinity)".equals(suffix)
+                || ".frame(maxHeight: .infinity)".equals(suffix);
     }
 
     private static String asString(SemanticValue v) {
@@ -652,6 +818,10 @@ public final class SwiftUIRenderer implements BackendRenderer {
 
     private boolean needsBackgroundFromProp(UINode node) {
         if (node.getProps() == null) return false;
+        if (node.getKind() == UIKind.IMAGE) {
+            String bg = asString(node.getProps().get(SemanticPropKeys.BACKGROUND));
+            if (isImageResourceRef(bg)) return false;
+        }
         boolean hasBackgroundModifier = node.getModifiers() != null
                 && node.getModifiers().stream().anyMatch(m -> m instanceof Modifier.Background);
         if (hasBackgroundModifier) return false;
@@ -680,6 +850,22 @@ public final class SwiftUIRenderer implements BackendRenderer {
         return null;
     }
 
+    private boolean isImageResourceRef(String rawRef) {
+        if (rawRef == null) return false;
+        String raw = rawRef.trim().toLowerCase();
+        return raw.startsWith("@drawable/")
+                || raw.startsWith("@mipmap/")
+                || raw.startsWith("@android:drawable/")
+                || raw.startsWith("@android:mipmap/");
+    }
+
+    private boolean hasSizeOrFillModifier(UINode node) {
+        if (node.getModifiers() == null || node.getModifiers().isEmpty()) return false;
+        return node.getModifiers().stream().anyMatch(m ->
+                m instanceof Modifier.Size || m instanceof Modifier.FillMax
+        );
+    }
+
     private String swiftColorExpr(String raw) {
         if (raw == null || raw.isBlank()) return "Color.clear";
         String s = raw.trim();
@@ -687,6 +873,15 @@ public final class SwiftUIRenderer implements BackendRenderer {
         if ("@android:color/white".equalsIgnoreCase(s)) return "Color.white";
         if ("@android:color/black".equalsIgnoreCase(s)) return "Color.black";
         return "Color.clear";
+    }
+
+    private String mapButtonStyle(String styleRaw) {
+        if (styleRaw == null || styleRaw.isBlank()) return "";
+        String s = styleRaw.toLowerCase();
+        if (s.contains("buttonprimarystyle")) return ".buttonStyle(.borderedProminent)";
+        if (s.contains("buttonsecondarystyle")) return ".buttonStyle(.bordered)";
+        if (s.contains("borderlessbuttonstyle")) return ".buttonStyle(.plain)";
+        return "";
     }
 
     private String swiftColorFromHex(String raw) {

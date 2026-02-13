@@ -1,0 +1,264 @@
+<FrameLayout
+    android:id="@+id/parentLayout"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:background="@android:color/black"
+    tools:context="com.nasahapps.awkwardratings.ui.MovieActivity.MovieFragment">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:id="@+id/backdrop"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:scaleType="centerCrop"
+                tools:src="@drawable/large_backdrop" />
+
+            <ImageButton
+                android:id="@+id/playTrailer"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:background="@drawable/transparent_button_bg"
+                android:elevation="0dp"
+                android:src="@drawable/ic_play"
+                android:visibility="invisible"
+                tools:visibility="visible" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/backdrop"
+                android:layout_marginTop="-40dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/poster"
+                        android:layout_width="108dp"
+                        android:layout_height="160dp"
+                        android:elevation="10dp"
+                        android:transitionName="poster"
+                        android:visibility="invisible"
+                        tools:src="@drawable/small_poster"
+                        tools:visibility="visible"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="40dp"
+                        android:orientation="vertical"
+                        android:paddingLeft="16dp"
+                        android:paddingRight="16dp">
+
+                        <TextView
+                            android:id="@+id/title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#fff"
+                            android:textSize="22sp"
+                            android:visibility="invisible"
+                            tools:text="Best Movie Ever"
+                            tools:visibility="visible"/>
+
+                        <TextView
+                            android:id="@+id/moreInfo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#fff"
+                            android:textSize="15sp"
+                            android:visibility="invisible"
+                            tools:text="October 2014 \u00b7 119 minutes"
+                            tools:visibility="visible"/>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp">
+
+                    <Button
+                        android:id="@+id/notAwkwardButton"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:layout_toLeftOf="@+id/awkwardness"
+                        android:background="@drawable/transparent_circle"
+                        android:elevation="5dp"
+                        android:text="NOT"
+                        android:textColor="#fff"
+                        android:visibility="invisible"
+                        tools:background="@drawable/green_circle"
+                        tools:visibility="visible"/>
+
+                    <Button
+                        android:id="@+id/awkwardness"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:layout_centerHorizontal="true"
+                        android:layout_marginLeft="32dp"
+                        android:layout_marginRight="32dp"
+                        android:background="@drawable/transparent_circle"
+                        android:elevation="5dp"
+                        android:textColor="#fff"
+                        android:visibility="invisible"
+                        tools:background="@drawable/transparent_circle"
+                        tools:text="86%"
+                        tools:visibility="visible"/>
+
+                    <Button
+                        android:id="@+id/awkwardButton"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:layout_toRightOf="@id/awkwardness"
+                        android:background="@drawable/transparent_circle"
+                        android:elevation="5dp"
+                        android:text="AWK"
+                        android:textColor="#fff"
+                        android:visibility="invisible"
+                        tools:background="@drawable/red_circle"
+                        tools:visibility="visible"/>
+
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/awkwardLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="2dp"
+                    android:text="awkward"
+                    android:visibility="invisible"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/leftSeparatorOne"
+                        android:layout_width="wrap_content"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="16dp"
+                        android:layout_marginRight="16dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_weight="1"
+                        android:background="@color/off_white"
+                        android:visibility="invisible"
+                        tools:visibility="visible"/>
+
+                    <TextView
+                        android:id="@+id/keywordsHeader"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:fontFamily="sans-serif-light"
+                        android:text="K E Y W O R D S"
+                        android:visibility="invisible"
+                        tools:visibility="visible"/>
+
+                    <View
+                        android:id="@+id/rightSeparatorOne"
+                        android:layout_width="wrap_content"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="16dp"
+                        android:layout_marginLeft="16dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_weight="1"
+                        android:background="@color/off_white"
+                        android:visibility="invisible"
+                        tools:visibility="visible"/>
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/keywords"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="#fff"
+                    android:visibility="invisible"
+                    tools:text="times square, superhero, long take, new york city, play, broadway, death of superhero, actor"
+                    tools:visibility="visible"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/leftSeparatorTwo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="16dp"
+                        android:layout_marginRight="16dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_weight="1"
+                        android:background="@color/off_white"
+                        android:visibility="invisible"
+                        tools:visibility="visible"/>
+
+                    <TextView
+                        android:id="@+id/overviewHeader"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:fontFamily="sans-serif-light"
+                        android:text="O V E R V I E W"
+                        android:visibility="invisible"
+                        tools:visibility="visible"/>
+
+                    <View
+                        android:id="@+id/rightSeparatorTwo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="16dp"
+                        android:layout_marginLeft="16dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_weight="1"
+                        android:background="@color/off_white"
+                        android:visibility="invisible"
+                        tools:visibility="visible"/>
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/overview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="#fff"
+                    android:visibility="invisible"
+                    tools:text="A story about love, passion, and plenty of explosions, the Robot Man finds his way through time to stop the evil aliens from taking over Russia."
+                    tools:visibility="visible"/>
+
+            </LinearLayout>
+
+        </RelativeLayout>
+
+    </ScrollView>
+
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"/>
+
+</FrameLayout>

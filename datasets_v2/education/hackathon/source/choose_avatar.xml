@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rsz_home_bg"
+    android:weightSum="1">
+
+    <TextView
+        android:layout_width="298dp"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Choose your avatar"
+        android:id="@+id/textView"
+        android:layout_gravity="center_horizontal"
+        android:layout_weight="0.07"
+        android:textSize="30sp"
+        android:textColor="@color/lightCoral"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="45dp"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
+
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/boybutton"
+        android:src="@drawable/boy_transparent"
+        android:layout_marginLeft="75dp"
+        android:layout_marginTop="150sp"
+        android:background="@android:color/transparent"/>
+
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/girlbutton"
+        android:src="@drawable/girl_transparent"
+        android:background="@android:color/transparent"
+        android:layout_alignTop="@+id/boybutton"
+        android:layout_alignRight="@+id/textView5"
+        android:layout_alignEnd="@+id/textView5" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="अपने अवतार चुनें "
+        android:id="@+id/textView5"
+        android:textSize="30sp"
+        android:textColor="@color/lightCoral"
+        android:layout_below="@+id/textView"
+        android:layout_centerHorizontal="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="@string/ratan"
+        android:id="@+id/textView4"
+        android:textSize="25sp"
+        android:gravity="center"
+        android:textColor="@color/white"
+        android:layout_below="@+id/girlbutton"
+        android:layout_alignLeft="@+id/boybutton"
+        android:layout_alignStart="@+id/boybutton"
+        android:layout_alignParentBottom="true"
+        android:layout_alignRight="@+id/boybutton"
+        android:layout_alignEnd="@+id/boybutton" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="@string/lata"
+        android:gravity="center"
+        android:id="@+id/textView11"
+        android:textSize="25sp"
+        android:textColor="@color/white"
+        android:layout_alignTop="@+id/textView4"
+        android:layout_alignParentBottom="true"
+        android:layout_alignRight="@+id/girlbutton"
+        android:layout_alignEnd="@+id/girlbutton"
+        android:layout_alignLeft="@+id/girlbutton"
+        android:layout_alignStart="@+id/girlbutton" />
+
+</RelativeLayout>

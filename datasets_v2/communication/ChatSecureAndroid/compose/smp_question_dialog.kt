@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -22,13 +23,13 @@ fun smp_question_dialog() {
       Row(modifier = Modifier.weight(1.0f)) {
         Column(modifier = Modifier.fillMaxWidth().fillMaxHeight().verticalScroll(rememberScrollState())) {
           Column(modifier = Modifier.fillMaxHeight().wrapContentWidth()) {
-            Row(modifier = Modifier.weight(1.0f)) {
+            Row(modifier = Modifier.weight(1.0f).padding(6.0.dp)) {
               Text(text = "Enter a question to send to your contact, and the answer you expect them to give, in order to verify they are who they claim to be.", modifier = Modifier.wrapContentWidth().wrapContentHeight())
             }
-            Row(modifier = Modifier.wrapContentWidth().wrapContentHeight()) {
+            Row(modifier = Modifier.wrapContentWidth().wrapContentHeight().padding(6.0.dp)) {
               OutlinedTextField(value = "", onValueChange = {}, placeholder = { Text("the question to ask") }, modifier = Modifier.fillMaxWidth().wrapContentHeight())
             }
-            Row(modifier = Modifier.wrapContentWidth().wrapContentHeight()) {
+            Row(modifier = Modifier.wrapContentWidth().wrapContentHeight().padding(6.0.dp)) {
               OutlinedTextField(value = "", onValueChange = {}, placeholder = { Text("the expected answer") }, modifier = Modifier.fillMaxWidth().wrapContentHeight())
             }
           }

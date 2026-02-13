@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/web_proxy_config"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="10sp">
+
+    <EditText
+        android:id="@+id/proxy_host"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints=""
+        android:ems="10"
+        android:hint="@string/proxy_host_hint"
+        android:imeOptions="actionNext"
+        android:inputType="textUri|textPersonName"
+        android:textColor="#64282828"
+        android:textCursorDrawable="@null"
+        android:backgroundTint="#64282828"
+        android:textColorHint="#64282828" />
+
+    <EditText
+        android:id="@+id/proxy_port"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints=""
+        android:ems="10"
+        android:hint="@string/proxy_port_hint"
+        android:imeOptions="actionNext"
+        android:inputType="number"
+        android:textColor="#64282828"
+        android:textCursorDrawable="@null"
+        android:backgroundTint="#64282828"
+        android:textColorHint="#64282828" />
+
+    <EditText
+        android:id="@+id/proxy_username"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints=""
+        android:ems="10"
+        android:hint="@string/proxy_username_hint"
+        android:imeOptions="actionNext"
+        android:inputType="textPersonName"
+        android:textColor="#64282828"
+        android:textCursorDrawable="@null"
+        android:backgroundTint="#64282828"
+        android:textColorHint="#64282828" />
+
+    <EditText
+        android:id="@+id/proxy_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints=""
+        android:ems="10"
+        android:hint="@string/proxy_password_hint"
+        android:imeOptions="actionDone"
+        android:inputType="textPassword"
+        android:textColor="#64282828"
+        android:textCursorDrawable="@null"
+        android:backgroundTint="#64282828"
+        android:textColorHint="#64282828" />
+
+    <TextView
+        android:id="@+id/proxy_type_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/activity_vertical_margin"
+        android:text="@string/proxy_type"
+        android:textColor="#64282828"
+        android:textSize="18sp"
+        android:padding="5dp" />
+
+    <RadioGroup
+        android:id="@+id/proxy_type"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/proxy_type_http"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="HTTP"
+            android:textColor="#64282828"
+            android:buttonTint="#64282828" />
+
+        <RadioButton
+            android:id="@+id/proxy_type_socks"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SOCKS"
+            android:textColor="#64282828"
+            android:buttonTint="#64282828" />
+    </RadioGroup>
+
+    <TextView
+        android:id="@+id/proxy_config_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/activity_vertical_margin"
+        android:lines="5"
+        android:textColor="#64282828"
+        android:padding="5dp" />
+</LinearLayout>

@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -17,15 +18,17 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun scrollingtext_buttons_view() {
-  Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
+  Column(modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(6.0.dp)) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
     Text(text = "TITLE", modifier = Modifier.fillMaxWidth().wrapContentHeight(), fontSize = TextUnit.Unspecified)
+    }
     Column(modifier = Modifier.fillMaxHeight().wrapContentWidth()) {
       Row(modifier = Modifier.weight(1.0f)) {
         Column(modifier = Modifier.fillMaxWidth().fillMaxHeight().verticalScroll(rememberScrollState())) {
-          Text(text = "this is sample text this is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample text", modifier = Modifier.wrapContentWidth().wrapContentHeight(), fontSize = TextUnit.Unspecified)
+          Text(text = "this is sample text this is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample textthis is sample text", modifier = Modifier.wrapContentWidth().wrapContentHeight().padding(6.0.dp), fontSize = TextUnit.Unspecified)
         }
       }
-      Row(modifier = Modifier.fillMaxWidth()) {
+      Row(modifier = Modifier.fillMaxWidth().height(30.0.dp)) {
         Button(onClick = {}, enabled = true, modifier = Modifier.wrapContentHeight().weight(1.0f)) {
           Text(text = "button1")
         }

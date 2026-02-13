@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -17,7 +18,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun group_view() {
-  Row(modifier = Modifier.fillMaxWidth()) {
+  Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
     Text(text = "", modifier = Modifier.wrapContentHeight().weight(1.0f))
     Text(text = "", modifier = Modifier.wrapContentWidth().wrapContentHeight())
   }

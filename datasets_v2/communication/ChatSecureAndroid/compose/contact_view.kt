@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -19,14 +20,17 @@ import androidx.compose.ui.unit.dp
 fun contact_view() {
   Column(modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(3.0.dp)) {
     Column(modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(0.0.dp).padding(start = 62.0.dp)) {
+      Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopStart) {
       Column(modifier = Modifier.wrapContentWidth().wrapContentHeight()) {
+      }
       }
       Column(modifier = Modifier.wrapContentWidth().wrapContentHeight()) {
       }
       Box(modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(3.0.dp)) { /* TODO Image */ }
+      Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
       Box(modifier = Modifier.size(24.0.dp, 24.0.dp).padding(3.0.dp).padding(top = -32.0.dp)) { /* TODO Image */ }
+      }
     }
-
   }
 }
 

@@ -270,6 +270,7 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
 
     private void fillAndUpdateAttrValue(ViewElement viewElement, UIResourceContext context) {
         Map<String, String> attributes = viewElement.getAttributes();
+        applyStyleAttributes(viewElement, context, attributes);
         for (Map.Entry<String, String> entry : attributes.entrySet()) {
             String attrName = entry.getKey();
             String attrValue = entry.getValue();
@@ -288,6 +289,68 @@ public final class DefaultUILayoutTranslator implements UILayoutTranslator {
             }
         }
         viewElement.setAttributes(attributes);
+    }
+
+    private void applyStyleAttributes(ViewElement viewElement, UIResourceContext context, Map<String, String> attributes) {
+        if (attributes == null || attributes.isEmpty()) return;
+        String styleRef = firstNonBlank(attributes.get("style"), attributes.get("android:style"));
+        if (styleRef == null || styleRef.isBlank()) return;
+        String styleName = stripStyleRef(styleRef);
+        if (styleName == null || styleName.isBlank()) return;
+
+        if (context == null || context.styleValues() == null || context.styleValues().isEmpty()) return;
+
+        Map<String, entity.resource.StyleValue> styleMap = new java.util.HashMap<>();
+        for (entity.resource.StyleValue s : context.styleValues()) {
+            if (s == null || s.getName() == null || s.getName().isBlank()) continue;
+            styleMap.put(s.getName(), s);
+        }
+
+        java.util.List<entity.resource.StyleValue.Item> items = resolveStyleItems(styleName, styleMap, new java.util.HashSet<>());
+        if (items == null || items.isEmpty()) return;
+
+        for (entity.resource.StyleValue.Item item : items) {
+            if (item == null || item.getName() == null || item.getName().isBlank()) continue;
+            String key = item.getName().trim();
+            String value = item.getValue() == null ? "" : item.getValue().trim();
+            if (key.isBlank() || value.isBlank()) continue;
+            attributes.putIfAbsent(key, value);
+        }
+    }
+
+    private java.util.List<entity.resource.StyleValue.Item> resolveStyleItems(
+            String styleName,
+            Map<String, entity.resource.StyleValue> styleMap,
+            java.util.Set<String> visiting
+    ) {
+        if (styleName == null || styleName.isBlank()) return java.util.List.of();
+        if (!visiting.add(styleName)) return java.util.List.of();
+        entity.resource.StyleValue style = styleMap.get(styleName);
+        if (style == null) return java.util.List.of();
+
+        java.util.List<entity.resource.StyleValue.Item> out = new java.util.ArrayList<>();
+        String parent = stripStyleRef(style.getParent());
+        if (parent != null && !parent.isBlank()) {
+            out.addAll(resolveStyleItems(parent, styleMap, visiting));
+        }
+        if (style.getItems() != null) out.addAll(style.getItems());
+        return out;
+    }
+
+    private String stripStyleRef(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.startsWith("@style/")) return s.substring("@style/".length());
+        if (s.startsWith("?style/")) return s.substring("?style/".length());
+        if (s.startsWith("@android:style/")) return null;
+        if (s.startsWith("?android:style/")) return null;
+        return s;
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        if (b != null && !b.isBlank()) return b;
+        return null;
     }
 
     private boolean isImageDrawableAttr(ViewElement viewElement, String attrName, String attrValue) {

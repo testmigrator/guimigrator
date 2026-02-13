@@ -30,6 +30,7 @@ public final class SemanticPropKeys {
     public static final String DRAWABLE_START = "drawableStart";
     public static final String DRAWABLE_END = "drawableEnd";
     public static final String DRAWABLE_PADDING = "drawablePadding";
+    public static final String VIEW_STYLE = "viewStyle";
 
     public static final String ALIGN_PARENT_BOTTOM = "layout_alignParentBottom";
 

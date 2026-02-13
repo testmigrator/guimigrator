@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -22,7 +23,7 @@ fun account_wizard_slider() {
       Text(text = "title text goes here", modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(8.0.dp))
       Text(text = "the detailed body test describing the app will go here and weill apll prima", modifier = Modifier.wrapContentWidth().wrapContentHeight().padding(8.0.dp).padding(top = 0.0.dp))
       Button(onClick = {}, enabled = true, modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(start = 20.0.dp).padding(end = 20.0.dp)) {
-        Text(text = "Add Account")
+        Text(text = "Add Account", textAlign = TextAlign.Center)
       }
     }
   }

@@ -24,6 +24,16 @@ public class RelativeLayoutNormalizerPass implements LayoutPass {
             return topRightBelow.get();
         }
 
+        Optional<UINode> twoColumnGrid = tryBuildTwoColumnGridLayout(n, spec);
+        if (twoColumnGrid.isPresent()) {
+            return twoColumnGrid.get();
+        }
+
+        Optional<UINode> centeredBelowCluster = tryBuildCenteredBelowClusterLayout(n, spec);
+        if (centeredBelowCluster.isPresent()) {
+            return centeredBelowCluster.get();
+        }
+
         if (!hasComplex2DConstraints(spec)) {
             Optional<List<UINode>> chain = tryBuildVerticalChain(children, spec);
             if (chain.isPresent()) {
@@ -153,6 +163,11 @@ public class RelativeLayoutNormalizerPass implements LayoutPass {
         Map<String, RelativeLayoutSpec.RelativeRules> rules = spec.getRulesByChildId();
         if (rules == null || rules.isEmpty()) return children;
 
+        Map<String, UINode> byId = children.stream()
+                .map(c -> Map.entry(nodeKey(c), c))
+                .filter(e -> e.getKey() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
+
         Map<String, String> hCache = new HashMap<>();
         Map<String, String> vCache = new HashMap<>();
 
@@ -172,9 +187,11 @@ public class RelativeLayoutNormalizerPass implements LayoutPass {
                 continue;
             }
 
+            UINode adjustedChild = applyRelativeOffsets(child, r, byId);
+
             String align = mapAlignment(id, rules, hCache, vCache);
             if (align == null) {
-                out.add(child);
+                out.add(adjustedChild);
                 continue;
             }
 
@@ -184,11 +201,183 @@ public class RelativeLayoutNormalizerPass implements LayoutPass {
                     .kind(UIKind.STACK)
                     .prop(SemanticPropKeys.BOX_ALIGNMENT, new SemanticValue.Str(align))
                     .modifier(new Modifier.FillMax(true, fullHeight))
-                    .slot(SlotKey.CONTENT, List.of(child))
+                    .slot(SlotKey.CONTENT, List.of(adjustedChild))
                     .build();
             out.add(wrapper);
         }
         return out;
+    }
+
+    private UINode applyRelativeOffsets(
+            UINode child,
+            RelativeLayoutSpec.RelativeRules r,
+            Map<String, UINode> byId
+    ) {
+        if (child == null || r == null || byId == null || byId.isEmpty()) return child;
+
+        List<Modifier> mods = child.getModifiers() == null ? new ArrayList<>() : new ArrayList<>(child.getModifiers());
+        boolean changed = false;
+
+        if (r.getAlignTopId() != null) {
+            Double top = marginValue(byId.get(r.getAlignTopId()), Modifier.Padding.Edge.TOP);
+            if (top != null && !hasMargin(child, Modifier.Padding.Edge.TOP)) {
+                mods.add(new Modifier.Margin(top, java.util.EnumSet.of(Modifier.Padding.Edge.TOP)));
+                changed = true;
+            }
+        }
+        if (r.getAlignStartId() != null) {
+            UINode ref = byId.get(r.getAlignStartId());
+            Double start = marginValue(ref, Modifier.Padding.Edge.START);
+            Double end = marginValue(ref, Modifier.Padding.Edge.END);
+            if (start != null && !hasMargin(child, Modifier.Padding.Edge.START)) {
+                mods.add(new Modifier.Margin(start, java.util.EnumSet.of(Modifier.Padding.Edge.START)));
+                changed = true;
+            } else if (start == null && end != null && !hasMargin(child, Modifier.Padding.Edge.END)) {
+                // alignStart to a view aligned-to-end: reuse its end margin
+                mods.add(new Modifier.Margin(end, java.util.EnumSet.of(Modifier.Padding.Edge.END)));
+                changed = true;
+            }
+        }
+        if (r.getAlignEndId() != null) {
+            UINode ref = byId.get(r.getAlignEndId());
+            Double end = marginValue(ref, Modifier.Padding.Edge.END);
+            Double start = marginValue(ref, Modifier.Padding.Edge.START);
+            if (end != null && !hasMargin(child, Modifier.Padding.Edge.END)) {
+                mods.add(new Modifier.Margin(end, java.util.EnumSet.of(Modifier.Padding.Edge.END)));
+                changed = true;
+            } else if (end == null && start != null && !hasMargin(child, Modifier.Padding.Edge.START)) {
+                mods.add(new Modifier.Margin(start, java.util.EnumSet.of(Modifier.Padding.Edge.START)));
+                changed = true;
+            }
+        }
+
+        if (r.getBelowId() != null) {
+            UINode ref = byId.get(r.getBelowId());
+            Double refHeight = estimateHeight(ref);
+            Double refTop = marginValue(ref, Modifier.Padding.Edge.TOP);
+            if (refHeight != null) {
+                double total = refHeight + (refTop == null ? 0.0 : refTop);
+                mods.add(new Modifier.Margin(total, java.util.EnumSet.of(Modifier.Padding.Edge.TOP)));
+                changed = true;
+            }
+        }
+
+        if (r.getAboveId() != null) {
+            UINode ref = byId.get(r.getAboveId());
+            Double refHeight = estimateHeight(ref);
+            Double refBottom = marginValue(ref, Modifier.Padding.Edge.BOTTOM);
+            if (refHeight != null) {
+                double total = refHeight + (refBottom == null ? 0.0 : refBottom);
+                mods.add(new Modifier.Margin(total, java.util.EnumSet.of(Modifier.Padding.Edge.BOTTOM)));
+                changed = true;
+            }
+        }
+
+        if (!changed) return child;
+        return new UINode(
+                child.getKind(),
+                child.getId(),
+                child.getLayoutSpec(),
+                child.getProps(),
+                mods,
+                child.getSlots(),
+                child.getSource()
+        );
+    }
+
+    private boolean hasMargin(UINode node, Modifier.Padding.Edge edge) {
+        if (node == null || node.getModifiers() == null) return false;
+        for (Modifier m : node.getModifiers()) {
+            if (m instanceof Modifier.Margin mg && marginCoversEdge(mg.edges(), edge)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Double sizeHeight(UINode node) {
+        if (node == null || node.getModifiers() == null) return null;
+        for (Modifier m : node.getModifiers()) {
+            if (m instanceof Modifier.Size s && s.height() != null) return s.height();
+        }
+        return null;
+    }
+
+    private Double estimateHeight(UINode node) {
+        if (node == null) return null;
+        Double explicit = sizeHeight(node);
+        if (explicit != null) return explicit;
+
+        if (node.getKind() == UIKind.TEXT) {
+            String raw = asString(node.getProps() == null ? null : node.getProps().get(SemanticPropKeys.TEXT_SIZE));
+            Double textSize = parseDpLike(raw);
+            if (textSize != null) {
+                double pad = verticalPadding(node);
+                return textSize + pad;
+            }
+        }
+        return null;
+    }
+
+    private double verticalPadding(UINode node) {
+        if (node == null || node.getModifiers() == null) return 0.0;
+        double total = 0.0;
+        for (Modifier m : node.getModifiers()) {
+            if (m instanceof Modifier.Padding p) {
+                var edges = p.edges();
+                if (edges.contains(Modifier.Padding.Edge.ALL) || edges.contains(Modifier.Padding.Edge.VERTICAL)) {
+                    total += p.value() * 2;
+                } else {
+                    if (edges.contains(Modifier.Padding.Edge.TOP)) total += p.value();
+                    if (edges.contains(Modifier.Padding.Edge.BOTTOM)) total += p.value();
+                }
+            }
+        }
+        return total;
+    }
+
+    private Double parseDpLike(String raw) {
+        if (raw == null) return null;
+        String t = raw.trim().toLowerCase(Locale.ROOT);
+        if (t.isBlank()) return null;
+        if (t.endsWith("dp") || t.endsWith("sp") || t.endsWith("px")) {
+            t = t.substring(0, t.length() - 2).trim();
+        }
+        try {
+            return Double.parseDouble(t);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private String asString(SemanticValue v) {
+        if (v == null) return null;
+        if (v instanceof SemanticValue.Str s) return s.value();
+        if (v instanceof SemanticValue.Expr e) return e.code();
+        return v.toString();
+    }
+
+    private Double marginValue(UINode node, Modifier.Padding.Edge edge) {
+        if (node == null || node.getModifiers() == null) return null;
+        for (Modifier m : node.getModifiers()) {
+            if (m instanceof Modifier.Margin mg && marginCoversEdge(mg.edges(), edge)) {
+                return mg.value();
+            }
+        }
+        return null;
+    }
+
+    private boolean marginCoversEdge(java.util.EnumSet<Modifier.Padding.Edge> edges, Modifier.Padding.Edge edge) {
+        if (edges == null || edges.isEmpty()) return false;
+        if (edges.contains(Modifier.Padding.Edge.ALL)) return true;
+        if (edges.contains(edge)) return true;
+        if (edge == Modifier.Padding.Edge.START || edge == Modifier.Padding.Edge.END) {
+            return edges.contains(Modifier.Padding.Edge.HORIZONTAL);
+        }
+        if (edge == Modifier.Padding.Edge.TOP || edge == Modifier.Padding.Edge.BOTTOM) {
+            return edges.contains(Modifier.Padding.Edge.VERTICAL);
+        }
+        return false;
     }
 
     private String mapAlignment(
@@ -310,7 +499,8 @@ public class RelativeLayoutNormalizerPass implements LayoutPass {
     private String mapBelow(String refV) {
         if (refV == null || refV.isBlank()) return "top";
         if ("bottom".equals(refV)) return "bottom";
-        if ("center".equals(refV)) return "bottom";
+        // "below a centered anchor" should stay around center with margin, not jump to screen bottom.
+        if ("center".equals(refV)) return "center";
         return "top";
     }
 
@@ -443,5 +633,347 @@ public class RelativeLayoutNormalizerPass implements LayoutPass {
                 node.getSlots(),
                 node.getSource()
         );
+    }
+
+    /**
+     * Common mobile header/body pattern:
+     * - A centered anchor (centerInParent / centerVertical),
+     * - One child placed below that anchor and centered horizontally,
+     * - Additional bottom-aligned status label.
+     *
+     * Render as Stack + centered Column(anchor, below...) to avoid overlap in Compose/SwiftUI.
+     */
+    private Optional<UINode> tryBuildCenteredBelowClusterLayout(UINode n, RelativeLayoutSpec spec) {
+        Map<String, UINode> byKey = n.children().stream()
+                .map(c -> Map.entry(nodeKey(c), c))
+                .filter(e -> e.getKey() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
+        Map<String, RelativeLayoutSpec.RelativeRules> rules = spec.getRulesByChildId();
+        if (byKey.isEmpty() || rules.isEmpty()) return Optional.empty();
+
+        String anchorKey = null;
+        List<String> belowKeys = new ArrayList<>();
+
+        for (var e : rules.entrySet()) {
+            String childKey = e.getKey();
+            RelativeLayoutSpec.RelativeRules r = e.getValue();
+            if (r == null || r.getBelowId() == null) continue;
+            String parent = r.getBelowId();
+            RelativeLayoutSpec.RelativeRules parentRule = rules.get(parent);
+            if (parentRule == null) continue;
+            if (!byKey.containsKey(childKey) || !byKey.containsKey(parent)) continue;
+
+            boolean parentCentered = parentRule.isCenterInParent() || parentRule.isCenterVertical();
+            boolean childCenteredH = r.isCenterHorizontal() || r.isCenterInParent();
+            if (parentCentered && childCenteredH) {
+                anchorKey = parent;
+                belowKeys.add(childKey);
+            }
+        }
+
+        if (anchorKey == null || belowKeys.isEmpty()) return Optional.empty();
+
+        List<UINode> centerCluster = new ArrayList<>();
+        centerCluster.add(byKey.get(anchorKey));
+        for (String k : belowKeys) {
+            if (byKey.containsKey(k)) centerCluster.add(byKey.get(k));
+        }
+
+        UINode centerColumn = UINode.builder()
+                .kind(UIKind.COLUMN)
+                .prop(SemanticPropKeys.H_ALIGNMENT, new SemanticValue.Str("center"))
+                .slot(SlotKey.CONTENT, centerCluster)
+                .build();
+
+        UINode centeredWrapper = UINode.builder()
+                .kind(UIKind.STACK)
+                .prop(SemanticPropKeys.BOX_ALIGNMENT, new SemanticValue.Str("center"))
+                .modifier(new Modifier.FillMax(true, true))
+                .slot(SlotKey.CONTENT, List.of(centerColumn))
+                .build();
+
+        Set<String> clustered = new HashSet<>();
+        clustered.add(anchorKey);
+        clustered.addAll(belowKeys);
+
+        List<UINode> remaining = new ArrayList<>();
+        for (UINode child : n.children()) {
+            String key = nodeKey(child);
+            if (key != null && clustered.contains(key)) continue;
+            remaining.add(child);
+        }
+
+        UINode stackRoot = UINode.builder()
+                .kind(UIKind.STACK)
+                .id(n.getId())
+                .props(n.getProps())
+                .modifiers(n.getModifiers())
+                .slots(Map.of(SlotKey.CONTENT, merge(centeredWrapper, wrapAlignedChildren(remaining, spec))))
+                .source(n.getSource())
+                .build();
+
+        return Optional.of(stackRoot);
+    }
+
+    private Optional<UINode> tryBuildTwoColumnGridLayout(UINode n, RelativeLayoutSpec spec) {
+        Map<String, RelativeLayoutSpec.RelativeRules> rules = spec.getRulesByChildId();
+        if (rules == null || rules.isEmpty()) return Optional.empty();
+
+        Map<String, UINode> byId = n.children().stream()
+                .map(c -> Map.entry(nodeKey(c), c))
+                .filter(e -> e.getKey() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
+        if (byId.isEmpty()) return Optional.empty();
+
+        List<String> iconIds = byId.entrySet().stream()
+                .filter(e -> isIconNode(e.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+        if (iconIds.size() < 4) return Optional.empty();
+
+        Map<String, ColumnSide> sideById = new HashMap<>();
+        for (String id : iconIds) {
+            ColumnSide side = resolveColumnSide(id, rules, new HashSet<>());
+            if (side != null) sideById.put(id, side);
+        }
+
+        // Need at least one left and one right column anchor
+        boolean hasLeft = sideById.values().stream().anyMatch(s -> s == ColumnSide.LEFT);
+        boolean hasRight = sideById.values().stream().anyMatch(s -> s == ColumnSide.RIGHT);
+        if (!hasLeft || !hasRight) return Optional.empty();
+
+        Map<String, Integer> rowById = new HashMap<>();
+        for (String id : iconIds) {
+            RelativeLayoutSpec.RelativeRules r = rules.get(id);
+            if (r == null) continue;
+            if (r.isAlignParentTop()) rowById.put(id, 0);
+            if (r.isCenterVertical()) rowById.put(id, 1);
+        }
+        // second pass: resolve via alignTop/below
+        for (String id : iconIds) {
+            if (rowById.containsKey(id)) continue;
+            RelativeLayoutSpec.RelativeRules r = rules.get(id);
+            if (r == null) continue;
+            Integer row = resolveRowFromRef(r, rowById);
+            if (row != null) rowById.put(id, row);
+        }
+
+        // Build row maps
+        Map<Integer, String> leftRow = new HashMap<>();
+        Map<Integer, String> rightRow = new HashMap<>();
+        for (String id : iconIds) {
+            Integer row = rowById.get(id);
+            ColumnSide side = sideById.get(id);
+            if (row == null || side == null) continue;
+            if (side == ColumnSide.LEFT) leftRow.put(row, id);
+            if (side == ColumnSide.RIGHT) rightRow.put(row, id);
+        }
+
+        if (!(leftRow.containsKey(0) && leftRow.containsKey(1) && leftRow.containsKey(2))) return Optional.empty();
+        if (!(rightRow.containsKey(0) && rightRow.containsKey(1) && rightRow.containsKey(2))) return Optional.empty();
+
+        // Attach text labels to nearest icon by alignStart/End chains
+        Map<String, List<UINode>> labelsByIcon = new HashMap<>();
+        for (UINode node : n.children()) {
+            if (node.getKind() != UIKind.TEXT) continue;
+            String id = nodeKey(node);
+            RelativeLayoutSpec.RelativeRules r = id == null ? null : rules.get(id);
+            String target = resolveAlignTarget(r, rules, byId, new HashSet<>());
+            if (target == null) continue;
+            if (!sideById.containsKey(target)) continue;
+            labelsByIcon.computeIfAbsent(target, k -> new ArrayList<>()).add(node);
+        }
+
+        // Order labels within each icon by below chain
+        for (Map.Entry<String, List<UINode>> e : labelsByIcon.entrySet()) {
+            e.setValue(orderByBelow(e.getValue(), rules));
+        }
+
+        List<UINode> rows = new ArrayList<>();
+        for (int row = 0; row <= 2; row++) {
+            UINode leftIcon = byId.get(leftRow.get(row));
+            UINode rightIcon = byId.get(rightRow.get(row));
+
+            UINode leftCol = buildGridCell(leftIcon, labelsByIcon.get(leftRow.get(row)));
+            UINode rightCol = buildGridCell(rightIcon, labelsByIcon.get(rightRow.get(row)));
+
+            UINode rowNode = UINode.builder()
+                    .kind(UIKind.ROW)
+                    .modifier(new Modifier.FillMax(true, false))
+                    .slot(SlotKey.CONTENT, List.of(
+                            addWeight(leftCol),
+                            addWeight(rightCol)
+                    ))
+                    .build();
+            rows.add(rowNode);
+        }
+
+        UINode column = UINode.builder()
+                .kind(UIKind.COLUMN)
+                .id(n.getId())
+                .props(n.getProps())
+                .modifiers(n.getModifiers())
+                .slot(SlotKey.CONTENT, rows)
+                .source(n.getSource())
+                .build();
+
+        return Optional.of(column);
+    }
+
+    private UINode buildGridCell(UINode icon, List<UINode> labels) {
+        List<UINode> children = new ArrayList<>();
+        children.add(icon);
+        if (labels != null && !labels.isEmpty()) children.addAll(labels);
+        return UINode.builder()
+                .kind(UIKind.COLUMN)
+                .prop(SemanticPropKeys.H_ALIGNMENT, new SemanticValue.Str("center"))
+                .slot(SlotKey.CONTENT, children)
+                .build();
+    }
+
+    private UINode addWeight(UINode node) {
+        List<Modifier> mods = new ArrayList<>();
+        if (node.getModifiers() != null) mods.addAll(node.getModifiers());
+        boolean hasWeight = mods.stream().anyMatch(m -> m instanceof Modifier.Weight);
+        if (!hasWeight) mods.add(new Modifier.Weight(1f));
+        return new UINode(
+                node.getKind(),
+                node.getId(),
+                node.getLayoutSpec(),
+                node.getProps(),
+                mods,
+                node.getSlots(),
+                node.getSource()
+        );
+    }
+
+    private boolean isIconNode(UINode node) {
+        return node != null && (node.getKind() == UIKind.IMAGE || node.getKind() == UIKind.ICON_BUTTON);
+    }
+
+    private enum ColumnSide {LEFT, RIGHT}
+
+    private ColumnSide resolveColumnSide(String id,
+                                         Map<String, RelativeLayoutSpec.RelativeRules> rules,
+                                         Set<String> visiting) {
+        if (id == null || !visiting.add(id)) return null;
+        RelativeLayoutSpec.RelativeRules r = rules.get(id);
+        if (r == null) return null;
+        if (r.isAlignParentStart()) return ColumnSide.LEFT;
+        if (r.isAlignParentEnd()) return ColumnSide.RIGHT;
+        if (r.getAlignStartId() != null) {
+            ColumnSide s = resolveColumnSide(r.getAlignStartId(), rules, visiting);
+            if (s != null) return s;
+        }
+        if (r.getAlignEndId() != null) {
+            ColumnSide s = resolveColumnSide(r.getAlignEndId(), rules, visiting);
+            if (s != null) return s;
+        }
+        if (r.getToStartOfId() != null) {
+            ColumnSide s = resolveColumnSide(r.getToStartOfId(), rules, visiting);
+            if (s != null) return s;
+        }
+        if (r.getToEndOfId() != null) {
+            ColumnSide s = resolveColumnSide(r.getToEndOfId(), rules, visiting);
+            if (s != null) return s;
+        }
+        return null;
+    }
+
+    private Integer resolveRowFromRef(RelativeLayoutSpec.RelativeRules r, Map<String, Integer> rowById) {
+        if (r.getAlignTopId() != null && rowById.containsKey(r.getAlignTopId())) {
+            return rowById.get(r.getAlignTopId());
+        }
+        if (r.getBelowId() != null && rowById.containsKey(r.getBelowId())) {
+            return rowById.get(r.getBelowId()) + 1;
+        }
+        return null;
+    }
+
+    private String resolveAlignTarget(RelativeLayoutSpec.RelativeRules r,
+                                      Map<String, RelativeLayoutSpec.RelativeRules> rules,
+                                      Map<String, UINode> byId,
+                                      Set<String> visiting) {
+        if (r == null) return null;
+        String candidate = firstNonBlank(r.getAlignStartId(), r.getAlignEndId());
+        if (candidate != null) {
+            String found = resolveAlignChain(candidate, rules, byId, visiting);
+            if (found != null) return found;
+        }
+        candidate = firstNonBlank(r.getToStartOfId(), r.getToEndOfId());
+        if (candidate != null) {
+            String found = resolveAlignChain(candidate, rules, byId, visiting);
+            if (found != null) return found;
+        }
+        candidate = firstNonBlank(r.getBelowId(), r.getAboveId());
+        if (candidate != null) {
+            String found = resolveAlignChain(candidate, rules, byId, visiting);
+            if (found != null) return found;
+        }
+        candidate = firstNonBlank(r.getAlignTopId(), r.getAlignBottomId());
+        if (candidate != null) {
+            String found = resolveAlignChain(candidate, rules, byId, visiting);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private String resolveAlignChain(String id,
+                                     Map<String, RelativeLayoutSpec.RelativeRules> rules,
+                                     Map<String, UINode> byId,
+                                     Set<String> visiting) {
+        if (id == null || !visiting.add(id)) return null;
+        if (byId.containsKey(id) && isIconNode(byId.get(id))) return id;
+        RelativeLayoutSpec.RelativeRules r = rules.get(id);
+        if (r == null) return null;
+        String next = firstNonBlank(r.getAlignStartId(), r.getAlignEndId());
+        if (next != null) return resolveAlignChain(next, rules, byId, visiting);
+        next = firstNonBlank(r.getToStartOfId(), r.getToEndOfId());
+        if (next != null) return resolveAlignChain(next, rules, byId, visiting);
+        next = firstNonBlank(r.getBelowId(), r.getAboveId());
+        if (next != null) return resolveAlignChain(next, rules, byId, visiting);
+        next = firstNonBlank(r.getAlignTopId(), r.getAlignBottomId());
+        if (next != null) return resolveAlignChain(next, rules, byId, visiting);
+        return null;
+    }
+
+    private String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        if (b != null && !b.isBlank()) return b;
+        return null;
+    }
+
+    private List<UINode> orderByBelow(List<UINode> nodes, Map<String, RelativeLayoutSpec.RelativeRules> rules) {
+        if (nodes == null || nodes.size() <= 1) return nodes;
+        Map<String, UINode> byId = nodes.stream()
+                .map(n -> Map.entry(nodeKey(n), n))
+                .filter(e -> e.getKey() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
+        List<UINode> out = new ArrayList<>();
+        Set<String> remaining = new HashSet<>(byId.keySet());
+        while (!remaining.isEmpty()) {
+            boolean progressed = false;
+            for (String id : new ArrayList<>(remaining)) {
+                RelativeLayoutSpec.RelativeRules r = rules.get(id);
+                String below = r == null ? null : r.getBelowId();
+                if (below == null || !remaining.contains(below)) {
+                    out.add(byId.get(id));
+                    remaining.remove(id);
+                    progressed = true;
+                }
+            }
+            if (!progressed) {
+                for (String id : remaining) out.add(byId.get(id));
+                break;
+            }
+        }
+        return out;
+    }
+
+    private List<UINode> merge(UINode first, List<UINode> rest) {
+        List<UINode> out = new ArrayList<>();
+        out.add(first);
+        if (rest != null && !rest.isEmpty()) out.addAll(rest);
+        return out;
     }
 }

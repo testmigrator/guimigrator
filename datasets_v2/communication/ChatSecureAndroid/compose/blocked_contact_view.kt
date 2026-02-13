@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -20,7 +21,9 @@ fun blocked_contact_view() {
   Column(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
     Box() {
       Box(modifier = Modifier.fillMaxWidth().fillMaxHeight()) { /* TODO Image */ }
+      Box(modifier = Modifier.align(Alignment.Center)) {
       Image(painter = painterResource(id = R.drawable.ic_im_block), contentDescription = null, modifier = Modifier.wrapContentWidth().wrapContentHeight(), contentScale = ContentScale.Fit)
+      }
     }
     Column(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
       Text(text = "", modifier = Modifier.wrapContentHeight().weight(1.0f))

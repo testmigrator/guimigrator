@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -17,7 +18,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun auth_view() {
-  Row(modifier = Modifier.fillMaxWidth()) {
+  Row(modifier = Modifier.fillMaxWidth().height(200.0.dp)) {
     Text(text = "Password please…", modifier = Modifier.fillMaxWidth().wrapContentHeight())
     OutlinedTextField(value = "", onValueChange = {}, modifier = Modifier.wrapContentHeight().weight(1.0f))
     OutlinedTextField(value = "", onValueChange = {}, modifier = Modifier.wrapContentHeight().weight(1.0f))

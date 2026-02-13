@@ -14,8 +14,12 @@ public final class ScrollViewRule implements NodeRule {
 
     @Override
     public NodeSpec apply(NodeContext ctx, ViewElement e) {
+        String type = e.getType() == null ? "" : e.getType();
+        boolean horizontal = type.endsWith("HorizontalScrollView") || "HorizontalScrollView".equals(type);
+
         return NodeSpec.builder()
                 .kind(UIKind.SCROLL)
+                .prop("scrollAxis", new SemanticValue.Str(horizontal ? "horizontal" : "vertical"))
                 .slotPolicy(SlotPolicy.CONTENT_ONLY)
                 .sourceSpan(UINode.SourceSpan.builder()
                         .xmlFile(ctx.getXmlFile())

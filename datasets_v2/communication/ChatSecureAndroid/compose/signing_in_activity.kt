@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -24,10 +25,12 @@ fun signing_in_activity() {
     Row(modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(top = 5.0.dp), horizontalArrangement = Arrangement.Center) {
       CircularProgressIndicator(modifier = Modifier.wrapContentWidth().wrapContentHeight())
     }
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
     Box(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
-      Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(), contentAlignment = Alignment.BottomStart) {
+      Box(modifier = Modifier.align(Alignment.BottomStart)) {
         Image(painter = painterResource(id = R.drawable.logo_poweredby), contentDescription = null, modifier = Modifier.fillMaxWidth().wrapContentHeight(), contentScale = ContentScale.Fit)
       }
+    }
     }
   }
 }

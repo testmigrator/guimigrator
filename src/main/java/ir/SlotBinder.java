@@ -49,6 +49,12 @@ public final class SlotBinder {
                 String ts = attr(src, "android:textSize");
                 if (ts != null) lp.put(SemanticPropKeys.TEXT_SIZE, new SemanticValue.Str(ts));
 
+                String textAlign = firstNonBlank(
+                        toTextAlignFromTextAlignment(attr(src, "android:textAlignment")),
+                        toTextAlignFromGravity(attr(src, "android:gravity"))
+                );
+                if (textAlign != null) lp.put(SemanticPropKeys.TEXT_ALIGN, new SemanticValue.Str(textAlign));
+
                 UINode label = UINode.builder()
                         .kind(UIKind.TEXT)
                         .props(Map.copyOf(lp))
@@ -81,6 +87,24 @@ public final class SlotBinder {
     private static String firstNonBlank(String a, String b) {
         if (a != null && !a.isBlank()) return a;
         if (b != null && !b.isBlank()) return b;
+        return null;
+    }
+
+    private static String toTextAlignFromTextAlignment(String textAlignment) {
+        if (textAlignment == null) return null;
+        String t = textAlignment.toLowerCase();
+        if (t.contains("center")) return "center";
+        if (t.contains("viewend") || t.contains("end") || t.contains("right")) return "end";
+        if (t.contains("viewstart") || t.contains("start") || t.contains("left")) return "start";
+        return null;
+    }
+
+    private static String toTextAlignFromGravity(String gravity) {
+        if (gravity == null) return null;
+        String g = gravity.toLowerCase();
+        if (g.contains("center")) return "center";
+        if (g.contains("end") || g.contains("right")) return "end";
+        if (g.contains("start") || g.contains("left")) return "start";
         return null;
     }
 }

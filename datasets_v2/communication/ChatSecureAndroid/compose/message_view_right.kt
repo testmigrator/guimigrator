@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -18,13 +19,13 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun message_view_right() {
   Column(modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(3.0.dp).padding(6.0.dp)) {
-    Column(modifier = Modifier.background(Color.Unspecified).wrapContentWidth().wrapContentHeight(), horizontalAlignment = Alignment.End) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
+    Column(modifier = Modifier.paint(painterResource(id = R.drawable.message_view_rounded_light), contentScale = ContentScale.Crop).wrapContentWidth().wrapContentHeight(), horizontalAlignment = Alignment.End) {
       Column(modifier = Modifier.wrapContentWidth().wrapContentHeight().padding(6.0.dp)) {
       }
-
       Text(text = "", modifier = Modifier.wrapContentHeight().width(160.0.dp).padding(6.0.dp), fontSize = 10.sp, textAlign = TextAlign.End)
     }
-
+    }
   }
 }
 

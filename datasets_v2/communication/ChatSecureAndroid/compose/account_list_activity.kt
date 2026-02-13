@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -21,7 +22,7 @@ fun account_list_activity() {
     Column(modifier = Modifier.weight(1.0f)) {
     }
     Text(text = "< swipe left and right for more options >", modifier = Modifier.background(Color(0xDD333333)).fillMaxWidth().wrapContentHeight().padding(8.0.dp).padding(top = 0.0.dp), color = Color(0xFFCCCCCC), textAlign = TextAlign.Center)
-    Column(modifier = Modifier.background(Color(0xDD333333)).fillMaxWidth()) {
+    Column(modifier = Modifier.background(Color(0xDD333333)).fillMaxWidth().height(40.0.dp)) {
     }
   }
 }

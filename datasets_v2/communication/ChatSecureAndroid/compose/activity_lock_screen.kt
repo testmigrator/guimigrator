@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -23,10 +24,12 @@ fun activity_lock_screen() {
         Column(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
           Column(modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(5.0.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = Modifier.fillMaxHeight().wrapContentWidth()) {
-              Text(text = "You can optionally set a master password for ChatSecure to prevent access to your contacts and messages without a password:", modifier = Modifier.fillMaxWidth().wrapContentHeight())
-              Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(), contentAlignment = Alignment.TopEnd) {
-                IconButton(onClick = {}, modifier = Modifier.background(Color.Unspecified).wrapContentWidth().wrapContentHeight().padding(0.0.dp)) {
-                  /* TODO map @drawable/ic_settings_language */ Icon(Icons.Default.Image, contentDescription = null)
+              Box(modifier = Modifier.align(Alignment.TopStart)) {
+                Text(text = "You can optionally set a master password for ChatSecure to prevent access to your contacts and messages without a password:", modifier = Modifier.fillMaxWidth().wrapContentHeight())
+              }
+              Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                IconButton(onClick = {}, modifier = Modifier.paint(painterResource(id = R.drawable.ab_transparent_chatsecure), contentScale = ContentScale.Crop).wrapContentWidth().wrapContentHeight().padding(0.0.dp)) {
+                  Image(painter = painterResource(id = R.drawable.ic_settings_language), contentDescription = "Language", contentScale = ContentScale.Fit)
                 }
               }
             }
@@ -43,7 +46,6 @@ fun activity_lock_screen() {
           Text(text = "Skip >>")
         }
       }
-
     }
   }
 }

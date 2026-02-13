@@ -216,6 +216,9 @@ public final class ComposeRenderer implements BackendRenderer {
         if (raw == null) return "Color.Unspecified";
         raw = raw.trim();
         if (raw.startsWith("Color.")) return raw;
+        if (raw.equalsIgnoreCase("@android:color/white")) return "Color.White";
+        if (raw.equalsIgnoreCase("@android:color/black")) return "Color.Black";
+        if (raw.equalsIgnoreCase("@android:color/transparent")) return "Color.Transparent";
         if (raw.startsWith("#")) {
             String hex = raw.substring(1);
             if (hex.length() == 6) return "Color(0xFF" + hex.toUpperCase() + ")";
@@ -226,11 +229,16 @@ public final class ComposeRenderer implements BackendRenderer {
 
     private String composeSp(String raw) {
         raw = raw.trim().toLowerCase();
-        if (raw.endsWith("sp")) {
+        if (raw.endsWith("sp") || raw.endsWith("dp") || raw.endsWith("px")) {
             String n = raw.substring(0, raw.length() - 2).trim();
             return n + ".sp";
         }
-        // dp/px 暂时不做，给默认
+        try {
+            double n = Double.parseDouble(raw);
+            return n + ".sp";
+        } catch (Exception ignore) {
+        }
+        // unknown unit fallback
         return "TextUnit.Unspecified";
     }
 
@@ -780,7 +788,8 @@ public final class ComposeRenderer implements BackendRenderer {
 
         // Fallback: for drawable/mipmap backgrounds stored in props (not in modifiers),
         // still emit a background modifier so container backgrounds are not lost.
-        if (!hasBgModifier && hasBgProp) {
+        boolean imageNodeWithImageBg = node.getKind() == UIKind.IMAGE && isImageResourceRef(bgProp);
+        if (!hasBgModifier && hasBgProp && !imageNodeWithImageBg) {
             String bgSeg = composeBackgroundModifier(new SemanticValue.Str(bgProp));
             if (!bgSeg.isBlank() && seenSegments.add(bgSeg)) {
                 sb.append(bgSeg);
@@ -909,6 +918,15 @@ public final class ComposeRenderer implements BackendRenderer {
             return ".background(" + e.code() + ")";
         }
         return ".background(Color.Unspecified)";
+    }
+
+    private boolean isImageResourceRef(String raw) {
+        if (raw == null) return false;
+        String v = raw.trim().toLowerCase();
+        return v.startsWith("@drawable/")
+                || v.startsWith("@mipmap/")
+                || v.startsWith("@android:drawable/")
+                || v.startsWith("@android:mipmap/");
     }
 
     private String composeColorExpr(SemanticValue v) {

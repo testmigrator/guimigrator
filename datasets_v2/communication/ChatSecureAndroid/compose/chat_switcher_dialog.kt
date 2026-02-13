@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -22,7 +23,7 @@ fun chat_switcher_dialog() {
       Row(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
       }
     }
-    Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(), contentAlignment = Alignment.BottomCenter) {
+    Box(modifier = Modifier.align(Alignment.BottomCenter)) {
       Image(painter = painterResource(id = R.drawable.droid_watermark), contentDescription = null, modifier = Modifier.wrapContentWidth().wrapContentHeight(), contentScale = ContentScale.Fit)
     }
   }

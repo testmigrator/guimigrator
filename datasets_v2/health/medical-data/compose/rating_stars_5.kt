@@ -1,0 +1,37 @@
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun rating_stars_5() {
+  Row(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
+    Text(text = "1", modifier = Modifier.paint(painterResource(id = R.drawable.star), contentScale = ContentScale.Crop).wrapContentWidth().wrapContentHeight(), fontSize = 18.sp, textAlign = TextAlign.Center)
+    Text(text = "2", modifier = Modifier.paint(painterResource(id = R.drawable.star), contentScale = ContentScale.Crop).wrapContentWidth().wrapContentHeight().padding(start = 7.0.dp), fontSize = 18.sp, textAlign = TextAlign.Center)
+    Text(text = "3", modifier = Modifier.paint(painterResource(id = R.drawable.star), contentScale = ContentScale.Crop).wrapContentWidth().wrapContentHeight().padding(start = 7.0.dp), fontSize = 18.sp, textAlign = TextAlign.Center)
+    Text(text = "4", modifier = Modifier.paint(painterResource(id = R.drawable.star), contentScale = ContentScale.Crop).wrapContentWidth().wrapContentHeight().padding(start = 7.0.dp), fontSize = 18.sp, textAlign = TextAlign.Center)
+    Text(text = "5", modifier = Modifier.paint(painterResource(id = R.drawable.star), contentScale = ContentScale.Crop).wrapContentWidth().wrapContentHeight().padding(start = 7.0.dp), fontSize = 18.sp, textAlign = TextAlign.Center)
+  }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun rating_stars_5_preview() {
+    MyApplicationTheme {
+        rating_stars_5()
+    }
+}
